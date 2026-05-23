@@ -1,0 +1,77 @@
+{
+  "name": "@usehasp/verify",
+  "version": "0.1.0",
+  "description": "Verify Hasp signed audit exports. Offline, no telemetry, standard primitives only.",
+  "license": "MIT",
+  "author": "Hasp, Inc.",
+  "type": "module",
+  "bin": {
+    "hasp-verify": "./src/cli.js"
+  },
+  "main": "./src/verify.js",
+  "types": "./src/types.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/types.d.ts",
+      "default": "./src/verify.js"
+    }
+  },
+  "files": [
+    "src",
+    "docs",
+    "README.md",
+    "LICENSE",
+    "SECURITY.md",
+    "CHANGELOG.md",
+    "CONTRIBUTING.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "format": "biome format --write .",
+    "lint": "biome lint .",
+    "check": "biome check .",
+    "check:fix": "biome check --write .",
+    "typecheck": "tsc -p .",
+    "changeset": "changeset",
+    "version": "changeset version",
+    "release": "changeset publish"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.4.15",
+    "@changesets/changelog-github": "^0.7.0",
+    "@changesets/cli": "^2.31.0",
+    "@types/node": "^20.0.0",
+    "@vitest/coverage-v8": "2.1.9",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/UseHasp/verify.git"
+  },
+  "bugs": {
+    "url": "https://github.com/UseHasp/verify/issues"
+  },
+  "homepage": "https://usehasp.com/trust/verify",
+  "keywords": [
+    "hasp",
+    "audit",
+    "audit-log",
+    "verify",
+    "ed25519",
+    "rfc3161",
+    "timestamp",
+    "tsa",
+    "tamper-evident",
+    "provenance"
+  ]
+}
