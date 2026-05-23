@@ -1,0 +1,125 @@
+{
+  "schema_version": "1.0",
+  "export": {
+    "tenant": "northridge.health",
+    "tenant_id": "org_01HV9WX3PQ8CK6N5Z2T4M7Y0HD",
+    "range": {
+      "from": "2026-04-25T00:00:00.000Z",
+      "to": "2026-04-25T23:59:59.999Z"
+    },
+    "exported_at": "2026-04-25T14:02:18.012Z",
+    "exported_by": "auditor@acme-cpa.com",
+    "entry_count": 4
+  },
+  "verification": {
+    "algo": "ed25519",
+    "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEATG41E7NOJWqgUG6uAj7swmdSnZfPk6NCpwlx+nqGGt4=\n-----END PUBLIC KEY-----\n",
+    "key_id": "key_01HV0F3JBA7Z2N8D5Q3R7V8M1C",
+    "key_published_at": "2026-04-01T00:00:00.000Z",
+    "chain_head_hash": "719bbcca5fae4092fc4bbb44a43d286f557a8eb8acf1b225fba8c4c081382771",
+    "tsa_anchor_chain": [
+      {
+        "checkpoint_after_entry": 4,
+        "tsa_url": "https://freetsa.org/tsr",
+        "tsa_cacert_url": "https://freetsa.org/files/cacert.pem",
+        "tsa_tsr_base64": "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",
+        "anchored_data": "chain_head_hash",
+        "anchored_at": "2026-05-21T02:15:12.473Z"
+      }
+    ],
+    "instructions": "https://usehasp.com/trust/verify"
+  },
+  "entries": [
+    {
+      "seq": 1,
+      "timestamp": "2026-04-25T14:02:11.847Z",
+      "actor": {
+        "type": "user",
+        "id": "user_01HV9WY1FQ3K8M5N2T7P0R4S6X",
+        "email": "dr.chen@northridge.health"
+      },
+      "action": "ai.chat.message",
+      "resource": {
+        "type": "ai_chat_session",
+        "id": "chat_01HV9WY3FZ2K6N5M8T7P0R4S6X"
+      },
+      "metadata": {
+        "model": "claude-sonnet-4-6",
+        "input_tokens": 412,
+        "phi_scan": {
+          "engine": "hasp-phi-scan-v1",
+          "categories_detected": ["NAME", "DATE_OF_BIRTH"],
+          "redaction_count": 2,
+          "action": "redact"
+        }
+      },
+      "prev_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "hash": "147e6f62570d90e41b6bce0e49503519d12fe65192d80eb44866325fab891bb8",
+      "signature": "ed25519:uB+7S9vuo+eyvR0FEsmnNzUa9eT4tqQG0L7jtwz6Tz99cS1p8cpeJb0OQmOAG5C+5Xu3cuoM8v2B/FHWrzYcDQ=="
+    },
+    {
+      "seq": 2,
+      "timestamp": "2026-04-25T14:02:14.203Z",
+      "actor": {
+        "type": "user",
+        "id": "user_01HV9WY1FQ3K8M5N2T7P0R4S6X",
+        "email": "dr.chen@northridge.health"
+      },
+      "action": "ai.chat.response",
+      "resource": {
+        "type": "ai_chat_session",
+        "id": "chat_01HV9WY3FZ2K6N5M8T7P0R4S6X"
+      },
+      "metadata": {
+        "model": "claude-sonnet-4-6",
+        "output_tokens": 287,
+        "finish_reason": "stop"
+      },
+      "prev_hash": "147e6f62570d90e41b6bce0e49503519d12fe65192d80eb44866325fab891bb8",
+      "hash": "2f8fac6b47a0b1a281578d895b4b2066cb69d8b0a59128ca24cd010976ceaf28",
+      "signature": "ed25519:f/b6XPI3lYG7kzK8b9Y/u3o5j4FE7sDeF0H6QvwgzhdgMEb9dxms4o8nAf6ppwSxdbPonSNb8GxjWxkCAA78AA=="
+    },
+    {
+      "seq": 3,
+      "timestamp": "2026-04-25T14:08:42.501Z",
+      "actor": {
+        "type": "api_key",
+        "id": "key_01HV9WZ2A3B4C5D6E7F8G9H0J1",
+        "label": "ehr-bridge"
+      },
+      "action": "data.record.create",
+      "resource": {
+        "type": "app_entity_record",
+        "id": "rec_01HV9X02M3N4P5Q6R7S8T9U0V1"
+      },
+      "metadata": {
+        "entity": "encounter",
+        "source_ip": "10.0.42.18"
+      },
+      "prev_hash": "2f8fac6b47a0b1a281578d895b4b2066cb69d8b0a59128ca24cd010976ceaf28",
+      "hash": "7a25d569bfbf87fb4c723ecc98c3baf368b8b04589281691958d5d8a75138c2a",
+      "signature": "ed25519:2XR2JM/dnAlQgzD965rFyvTz3yEIoCbEyySR/sa2VLTTlnARBJqFDVn33XMQQ1Ol1DUQmgbVrPP5Q46LvXjNBw=="
+    },
+    {
+      "seq": 4,
+      "timestamp": "2026-04-25T14:11:55.310Z",
+      "actor": {
+        "type": "user",
+        "id": "user_01HV9X1B3C4D5E6F7G8H9J0K1L",
+        "email": "compliance@northridge.health"
+      },
+      "action": "audit.export.request",
+      "resource": {
+        "type": "audit_export",
+        "id": "exp_01HV9X2N3P4Q5R6S7T8U9V0W1X"
+      },
+      "metadata": {
+        "range": "2026-04-25",
+        "format": "json"
+      },
+      "prev_hash": "7a25d569bfbf87fb4c723ecc98c3baf368b8b04589281691958d5d8a75138c2a",
+      "hash": "719bbcca5fae4092fc4bbb44a43d286f557a8eb8acf1b225fba8c4c081382771",
+      "signature": "ed25519:y64klqioGwAeHNwEAJJykDBPt4ZTTUJ0W4wTwFCXItWTozHUATagwtoAfkxPf7CWspqwyMvM5zlNMYhnsQgUAQ=="
+    }
+  ]
+}
