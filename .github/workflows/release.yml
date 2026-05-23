@@ -1,0 +1,78 @@
+name: release
+
+on:
+  push:
+    branches:
+      - main
+      - staging
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+  attestations: write
+
+jobs:
+  release:
+    name: release
+    runs-on: ubuntu-latest
+    # Re-enable when a second maintainer joins, to require manual approval:
+    # environment: npm-production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Verify dependency signatures
+        run: npm audit signatures
+
+      - name: Lint
+        run: npm run check
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm run test:coverage
+
+      - name: Pack dry-run
+        run: npm pack --dry-run
+
+      - name: Changesets — version PR or publish
+        id: changesets
+        uses: changesets/action@63a615b9cd06ba9a3e6d13796c7fbcb080a60a0b # v1.8.0
+        with:
+          publish: npm run release
+          version: npm run version
+          commit: "chore(release): version packages"
+          title: "chore(release): version packages"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # TODO(security): remove NODE_AUTH_TOKEN after configuring Trusted Publisher
+          # on npmjs.com (package Settings → Trusted Publisher). OIDC (id-token: write
+          # above) then handles auth with no long-lived secret.
+          # Tracking issue: https://github.com/UseHasp/verify/issues — file before first publish.
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: "true"
+
+      - name: Attest published tarball
+        if: steps.changesets.outputs.published == 'true'
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
+        with:
+          subject-path: "*.tgz"
