@@ -1,10 +1,12 @@
 name: release
 
+# Publish runs on main only. Staging is for PR validation via test.yml.
+# Earlier setup also triggered this workflow on staging, producing
+# duplicate changeset PRs and unnecessary changesets-action invocations.
 on:
   push:
     branches:
       - main
-      - staging
 
 concurrency:
   group: release-${{ github.ref }}
@@ -59,6 +61,19 @@ jobs:
       - name: Pack dry-run
         run: npm pack --dry-run
 
+      # Smoke-test the actual artifact that will ship: pack, install into a
+      # throwaway dir, run the bin against a fixture. Catches regressions
+      # like missing `files`, broken `bin`, or shebang issues that source-only
+      # tests miss.
+      - name: Smoke-test packed tarball
+        run: |
+          tarball=$(npm pack 2>/dev/null | tail -1)
+          mkdir -p /tmp/smoke && cd /tmp/smoke && npm init -y >/dev/null
+          npm install "$GITHUB_WORKSPACE/$tarball" >/dev/null
+          ./node_modules/.bin/hasp-verify --version
+          ./node_modules/.bin/hasp-verify "$GITHUB_WORKSPACE/test/fixtures/valid.json" --skip-tsa
+          rm "$GITHUB_WORKSPACE/$tarball"
+
       - name: Changesets — version PR or publish
         id: changesets
         uses: changesets/action@63a615b9cd06ba9a3e6d13796c7fbcb080a60a0b # v1.8.0
@@ -67,6 +82,7 @@ jobs:
           version: npm run version
           commit: "chore(release): version packages"
           title: "chore(release): version packages"
+          createGithubReleases: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Auth is via npm Trusted Publisher (OIDC) — no long-lived token.
@@ -74,6 +90,14 @@ jobs:
           # for repo UseHasp/verify, workflow release.yml. `id-token: write`
           # above is what makes OIDC available to this step.
           NPM_CONFIG_PROVENANCE: "true"
+
+      # changeset publish removes the .tgz after upload. Repack so the
+      # attest step has a subject. Provenance is already published via
+      # `NPM_CONFIG_PROVENANCE: true` above — this is a second-layer
+      # attestation linked to the workflow run.
+      - name: Repack for attestation
+        if: steps.changesets.outputs.published == 'true'
+        run: npm pack
 
       - name: Attest published tarball
         if: steps.changesets.outputs.published == 'true'

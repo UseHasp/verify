@@ -1,0 +1,15 @@
+# Release-affecting paths require maintainer review.
+# Catch-all
+*                              @benjamincharity
+
+# Release pipeline + supply-chain critical
+/.github/workflows/release.yml @benjamincharity
+/.github/workflows/test.yml    @benjamincharity
+/.changeset/                   @benjamincharity
+/CHANGELOG.md                  @benjamincharity
+/package.json                  @benjamincharity
+/package-lock.json             @benjamincharity
+
+# Verifier source (the actual trust surface)
+/src/                          @benjamincharity
+/schema/                       @benjamincharity
