@@ -3,10 +3,17 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { canonicalSorted } from "../src/canonical.js";
-import { verifyExport } from "../src/verify.js";
+import { VERSION, verifyExport } from "../src/verify.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const load = (name) => JSON.parse(readFileSync(resolve(here, "fixtures", name), "utf8"));
+
+describe("VERSION", () => {
+  it("matches package.json version (single source of truth)", () => {
+    const pkg = JSON.parse(readFileSync(resolve(here, "..", "package.json"), "utf8"));
+    expect(VERSION).toBe(pkg.version);
+  });
+});
 
 describe("canonicalSorted", () => {
   it("sorts object keys at every depth", () => {

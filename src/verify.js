@@ -11,17 +11,21 @@
  * detail. The CLI's JSON output is a superset of this object.
  */
 
+import { readFileSync } from "node:fs";
 import { checkChain } from "./checks/chain.js";
 import { checkSchema } from "./checks/schema.js";
 import { checkSignatures } from "./checks/signature.js";
 import { checkTsa } from "./checks/tsa.js";
 
-export const VERSION = "0.1.0";
+const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
+
+export const VERSION = pkg.version;
 export const SCHEMA_VERSION = "1.0";
 
 /**
  * @typedef {Object} VerifyOptions
  * @property {boolean} [skipTsa] skip the RFC 3161 TSA anchor check
+ * @property {string} [caFile] read TSA CA cert from this local PEM file instead of fetching `tsa_cacert_url`
  * @property {typeof fetch} [fetcher] inject a fetch implementation (testing)
  * @property {string} [opensslPath] override the `openssl` binary path
  */
@@ -75,6 +79,7 @@ export async function verifyExport(data, opts = {}) {
     const tsaResult = await checkTsa(validated, {
       fetcher: opts.fetcher,
       opensslPath: opts.opensslPath,
+      caFile: opts.caFile,
     });
     out.checks.tsa = { ran: true, ...tsaResult };
     if (!tsaResult.ok) return out;
