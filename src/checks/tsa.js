@@ -12,7 +12,7 @@
  * head (matches the generator, which writes `Buffer.from(chainHead, "utf8")`).
  */
 import { execFile } from "node:child_process";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { promisify } from "node:util";
@@ -25,13 +25,33 @@ const MAX_CACERT_BYTES = 1024 * 1024; // 1 MB — a real CA cert is < 10 KB.
 
 /**
  * @param {{verification: {chain_head_hash: string, tsa_anchor_chain: any[]}}} data
- * @param {{fetcher?: typeof fetch, opensslPath?: string}} [opts]
+ * @param {{fetcher?: typeof fetch, opensslPath?: string, caFile?: string}} [opts]
  * @returns {Promise<{ok: true, anchors: Array<{tsa_url: string, output: string}>} | {ok: false, error: string}>}
  */
 export async function checkTsa(data, opts = {}) {
   const fetcher = opts.fetcher ?? fetch;
   const openssl = opts.opensslPath ?? "openssl";
+  const caFile = opts.caFile;
   const chainHead = data.verification.chain_head_hash;
+
+  /** @type {Buffer | null} */
+  let caFileBytes = null;
+  if (caFile) {
+    try {
+      caFileBytes = await readFile(caFile);
+    } catch (err) {
+      return {
+        ok: false,
+        error: `failed to read --ca-file ${caFile}: ${err instanceof Error ? err.message : String(err)}`,
+      };
+    }
+    if (caFileBytes.byteLength > MAX_CACERT_BYTES) {
+      return {
+        ok: false,
+        error: `--ca-file ${caFile} exceeds ${MAX_CACERT_BYTES}-byte cap (got ${caFileBytes.byteLength})`,
+      };
+    }
+  }
 
   await assertOpenssl(openssl);
 
@@ -46,9 +66,13 @@ export async function checkTsa(data, opts = {}) {
       const caPath = resolve(tmp, `cacert-${i}.pem`);
       await writeFile(tsrPath, Buffer.from(anchor.tsa_tsr_base64, "base64"));
 
-      const fetched = await fetchCacert(fetcher, anchor.tsa_cacert_url);
-      if (!fetched.ok) return { ok: false, error: fetched.error };
-      await writeFile(caPath, fetched.bytes);
+      if (caFileBytes) {
+        await writeFile(caPath, caFileBytes);
+      } else {
+        const fetched = await fetchCacert(fetcher, anchor.tsa_cacert_url);
+        if (!fetched.ok) return { ok: false, error: fetched.error };
+        await writeFile(caPath, fetched.bytes);
+      }
 
       try {
         const { stdout, stderr } = await execFileP(openssl, [

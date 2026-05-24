@@ -7,6 +7,7 @@
  */
 
 import { spawn } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { beforeAll, describe, expect, it } from "vitest";
@@ -15,16 +16,21 @@ const here = dirname(fileURLToPath(import.meta.url));
 const CLI = resolve(here, "..", "src", "cli.js");
 const FIXTURES = resolve(here, "fixtures");
 
-function run(args, env = {}) {
+function run(args, { env = {}, stdin } = {}) {
   return new Promise((res) => {
     const proc = spawn(process.execPath, [CLI, ...args], {
       env: { ...process.env, ...env },
+      stdio: ["pipe", "pipe", "pipe"],
     });
     let stdout = "";
     let stderr = "";
     proc.stdout.on("data", (c) => (stdout += c));
     proc.stderr.on("data", (c) => (stderr += c));
     proc.on("close", (code) => res({ code, stdout, stderr }));
+    if (stdin !== undefined) {
+      proc.stdin.write(stdin);
+    }
+    proc.stdin.end();
   });
 }
 
@@ -115,5 +121,64 @@ describe("cli", () => {
     const r = await run([resolve(FIXTURES, "broken-tsa.json")]);
     expect(r.code).toBe(1);
     expect(r.stdout).toMatch(/FAILED/);
+  }, 30000);
+
+  it("reads export from stdin when file is '-'", async () => {
+    const raw = readFileSync(resolve(FIXTURES, "valid.json"), "utf8");
+    const r = await run(["-", "--skip-tsa"], { stdin: raw });
+    expect(r.code).toBe(0);
+    expect(r.stdout).toMatch(/VERIFIED\./);
+  });
+
+  it("stdin with invalid JSON exits 2 with stdin in error message", async () => {
+    const r = await run(["-", "--skip-tsa"], { stdin: "not json" });
+    expect(r.code).toBe(2);
+    expect(r.stderr).toMatch(/stdin/);
+  });
+
+  it("--verbose on success prints Detail block with key fields", async () => {
+    const r = await run([resolve(FIXTURES, "valid.json"), "--skip-tsa", "--verbose"]);
+    expect(r.code).toBe(0);
+    expect(r.stdout).toMatch(/VERIFIED\./);
+    expect(r.stdout).toMatch(/Detail:/);
+    expect(r.stdout).toMatch(/schema_version:/);
+    expect(r.stdout).toMatch(/tenant_id:/);
+    expect(r.stdout).toMatch(/range:/);
+    expect(r.stdout).toMatch(/entries:\s+\d+/);
+    expect(r.stdout).toMatch(/key_id:/);
+    expect(r.stdout).toMatch(/anchors:\s+\d+/);
+  });
+
+  it("--ca-file requires an argument", async () => {
+    const r = await run([resolve(FIXTURES, "valid.json"), "--ca-file"]);
+    expect(r.code).toBe(2);
+    expect(r.stderr).toMatch(/--ca-file requires a path/);
+  });
+
+  it("--ca-file with a missing file fails with exit 1 and a clear error", async () => {
+    const r = await run([resolve(FIXTURES, "valid.json"), "--ca-file", "/nonexistent/ca-xyz.pem"]);
+    expect(r.code).toBe(1);
+    expect(r.stdout + r.stderr).toMatch(/failed to read --ca-file/);
+  });
+
+  it("--ca-file=<path> form also parses", async () => {
+    const r = await run([resolve(FIXTURES, "valid.json"), `--ca-file=/nonexistent/ca-xyz.pem`]);
+    expect(r.code).toBe(1);
+    expect(r.stdout + r.stderr).toMatch(/failed to read --ca-file/);
+  });
+
+  it("--ca-file with local TSA cert verifies offline (no network)", async () => {
+    // No `online` guard — this should work with network blocked because we feed the cert from disk.
+    const r = await run([
+      resolve(FIXTURES, "valid.json"),
+      "--ca-file",
+      resolve(FIXTURES, "tsa-cacert.pem"),
+    ]);
+    if (r.code !== 0) {
+      console.error("STDOUT:", r.stdout);
+      console.error("STDERR:", r.stderr);
+    }
+    expect(r.code).toBe(0);
+    expect(r.stdout).toMatch(/VERIFIED\./);
   }, 30000);
 });

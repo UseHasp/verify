@@ -98,6 +98,27 @@ describe("checkTsa", () => {
     expect(r.error).toMatch(/exceeds .*byte cap/);
   });
 
+  it("with --ca-file uses local cert and never invokes fetcher", async () => {
+    if (!hasOpenssl) return;
+    let calls = 0;
+    const fetcher = async () => {
+      calls++;
+      throw new Error("fetcher should not be called when caFile is set");
+    };
+    const r = await checkTsa(VALID, {
+      fetcher,
+      caFile: resolve(here, "fixtures", "tsa-cacert.pem"),
+    });
+    expect(r.ok).toBe(true);
+    expect(calls).toBe(0);
+  });
+
+  it("with --ca-file pointing at a missing path returns a clear error", async () => {
+    const r = await checkTsa(VALID, { caFile: "/nonexistent/ca-xyz.pem" });
+    expect(r.ok).toBe(false);
+    expect(r.error).toMatch(/failed to read --ca-file/);
+  });
+
   it("passes AbortSignal to the fetcher (so the 15s timeout can fire)", async () => {
     if (!hasOpenssl) return;
     let receivedSignal = null;

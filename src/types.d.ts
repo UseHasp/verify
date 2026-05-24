@@ -13,6 +13,11 @@ export const SCHEMA_VERSION: string;
 export interface VerifyOptions {
   /** Skip the RFC 3161 TSA anchor check (offline mode). */
   skipTsa?: boolean;
+  /**
+   * Read TSA CA certificate from this local PEM file instead of fetching
+   * `tsa_cacert_url`. Useful for air-gapped or long-term archival verification.
+   */
+  caFile?: string;
   /** Inject a fetch implementation (for testing). */
   fetcher?: typeof fetch;
   /** Override the `openssl` binary path. */
