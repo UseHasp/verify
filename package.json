@@ -6,7 +6,7 @@
   "author": "Hasp, Inc.",
   "type": "module",
   "bin": {
-    "hasp-verify": "./src/cli.js"
+    "hasp-verify": "src/cli.js"
   },
   "main": "./src/verify.js",
   "types": "./src/types.d.ts",
