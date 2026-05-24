@@ -10,11 +10,10 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/@usehasp/verify"><img src="https://img.shields.io/npm/v/@usehasp/verify?color=cb3837&label=npm" alt="npm version" /></a>
-  <a href="https://www.npmjs.com/package/@usehasp/verify"><img src="https://img.shields.io/npm/dm/@usehasp/verify?color=cb3837" alt="npm downloads" /></a>
   <a href="https://github.com/UseHasp/verify/actions/workflows/test.yml"><img src="https://img.shields.io/github/actions/workflow/status/UseHasp/verify/test.yml?branch=main&label=CI" alt="CI status" /></a>
   <a href="https://docs.npmjs.com/generating-provenance-statements"><img src="https://img.shields.io/badge/npm-provenance-blue" alt="npm provenance" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/npm/l/@usehasp/verify?color=blue" alt="MIT license" /></a>
-  <img src="https://img.shields.io/node/v/@usehasp/verify?color=brightgreen" alt="Node version" />
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT license" /></a>
+  <img src="https://img.shields.io/badge/node-%3E%3D20-brightgreen" alt="Node >=20" />
 </p>
 
 ---
