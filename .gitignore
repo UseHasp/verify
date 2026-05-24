@@ -8,3 +8,6 @@ dist
 !.env.example
 *.tsr.tmp
 *.cacert.tmp
+
+# npm pack artifacts
+*.tgz
