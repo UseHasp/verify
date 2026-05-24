@@ -189,7 +189,7 @@ if (!result.ok) {
 
 | Export `schema_version` | Tool version | Status   |
 |-------------------------|--------------|----------|
-| `1.0`                   | `0.1.x`      | current  |
+| `1.0`                   | `1.x`        | current  |
 
 ## Trust & provenance
 
