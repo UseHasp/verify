@@ -22,7 +22,7 @@ export function checkSchema(data) {
   }
   if (data.schema_version !== SUPPORTED_SCHEMA) {
     return fail(
-      `unsupported schema_version: ${JSON.stringify(data.schema_version)} (expected "${SUPPORTED_SCHEMA}")`,
+      `unsupported schema_version: ${JSON.stringify(data.schema_version)} (this tool supports "${SUPPORTED_SCHEMA}" — see https://github.com/UseHasp/verify#versioning--support for the compatibility table)`,
     );
   }
 
