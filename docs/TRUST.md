@@ -62,4 +62,4 @@ If the verdicts disagree, the manual recipe is authoritative. File an issue with
 | Compromised verifier on auditor's machine | Out of scope — re-run the manual recipe. |
 | Compromised npm tarball | Provenance + Sigstore attestation; verify with `npm audit signatures` or `gh attestation verify`. |
 
-See [SECURITY.md](../SECURITY.md) for the disclosure policy and known limitations.
+See [SECURITY.md](../SECURITY.md) for the disclosure policy and known limitations. Field-by-field schema reference: [SCHEMA.md](./SCHEMA.md). Air-gapped verification cookbook: [AIR-GAPPED.md](./AIR-GAPPED.md).

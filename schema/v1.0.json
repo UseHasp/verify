@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://usehasp.com/schema/audit-export/v1.0.json",
+  "title": "Hasp audit export, schema_version 1.0",
+  "description": "Authoritative shape check is in src/checks/schema.js; this document mirrors it for non-JS verifiers.",
+  "type": "object",
+  "required": ["schema_version", "export", "verification", "entries"],
+  "additionalProperties": true,
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "export": {
+      "type": "object",
+      "required": ["tenant", "tenant_id", "range", "exported_at", "exported_by", "entry_count"],
+      "additionalProperties": true,
+      "properties": {
+        "tenant": { "type": "string" },
+        "tenant_id": { "type": "string" },
+        "range": {
+          "type": "object",
+          "required": ["from", "to"],
+          "additionalProperties": true,
+          "properties": {
+            "from": { "type": "string" },
+            "to": { "type": "string" }
+          }
+        },
+        "exported_at": { "type": "string" },
+        "exported_by": { "type": "string" },
+        "entry_count": { "type": "number" }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "required": [
+        "algo",
+        "public_key_pem",
+        "key_id",
+        "key_published_at",
+        "chain_head_hash",
+        "tsa_anchor_chain"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "algo": { "const": "ed25519" },
+        "public_key_pem": { "type": "string" },
+        "key_id": { "type": "string" },
+        "key_published_at": { "type": "string" },
+        "chain_head_hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "tsa_anchor_chain": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": [
+              "checkpoint_after_entry",
+              "tsa_url",
+              "tsa_cacert_url",
+              "tsa_tsr_base64",
+              "anchored_data"
+            ],
+            "additionalProperties": true,
+            "properties": {
+              "checkpoint_after_entry": { "type": "number" },
+              "tsa_url": { "type": "string", "format": "uri", "pattern": "^https://" },
+              "tsa_cacert_url": { "type": "string", "format": "uri", "pattern": "^https://" },
+              "tsa_tsr_base64": { "type": "string" },
+              "anchored_data": { "const": "chain_head_hash" }
+            }
+          }
+        }
+      }
+    },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "seq",
+          "timestamp",
+          "actor",
+          "action",
+          "resource",
+          "prev_hash",
+          "hash",
+          "signature"
+        ],
+        "additionalProperties": true,
+        "properties": {
+          "seq": { "type": "number", "minimum": 1 },
+          "timestamp": { "type": "string" },
+          "actor": { "type": "object" },
+          "action": { "type": "string" },
+          "resource": { "type": "object" },
+          "prev_hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "signature": { "type": "string", "pattern": "^ed25519:" }
+        }
+      }
+    }
+  }
+}
