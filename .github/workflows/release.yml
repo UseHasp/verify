@@ -64,11 +64,10 @@ jobs:
           title: "chore(release): version packages"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # TODO(security): remove NODE_AUTH_TOKEN after configuring Trusted Publisher
-          # on npmjs.com (package Settings → Trusted Publisher). OIDC (id-token: write
-          # above) then handles auth with no long-lived secret.
-          # Tracking issue: https://github.com/UseHasp/verify/issues — file before first publish.
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          # Auth is via npm Trusted Publisher (OIDC) — no long-lived token.
+          # Configured at https://www.npmjs.com/package/@usehasp/verify/access
+          # for repo UseHasp/verify, workflow release.yml. `id-token: write`
+          # above is what makes OIDC available to this step.
           NPM_CONFIG_PROVENANCE: "true"
 
       - name: Attest published tarball
