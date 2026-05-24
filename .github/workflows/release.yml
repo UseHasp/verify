@@ -36,6 +36,11 @@ jobs:
           registry-url: https://registry.npmjs.org
           cache: npm
 
+      # Trusted publishing (OIDC) requires npm 11.5.1+. Node 22 LTS still
+      # ships npm 10.x; upgrade explicitly so `changeset publish` can use OIDC.
+      - name: Upgrade npm to latest
+        run: npm install -g npm@latest
+
       - name: Install
         run: npm ci
 
