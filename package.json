@@ -33,6 +33,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "verify:real": "node src/cli.js test/fixtures/valid.json --verbose",
     "format": "biome format --write .",
     "lint": "biome lint .",
     "check": "biome check .",
