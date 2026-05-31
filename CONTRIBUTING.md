@@ -41,7 +41,21 @@ The HTML coverage report is uploaded as a GitHub Actions artifact on every CI ru
 
 `test/fixtures/valid.json` is the canonical sample export. The four `broken-*.json` fixtures are generated from it by `test/fixtures/build-broken.js`. If `valid.json` changes, re-run that script and commit the regenerated broken fixtures.
 
-`valid.json` itself is kept in sync with the live sample at <https://usehasp.com/trust/audit-export-sample.json>. Run the CLI against the live sample before each release to catch generator/verifier drift.
+`valid.json` itself is kept in sync with the live sample at <https://usehasp.com/trust/audit-export-sample.json>. The [real-world workflow](#real-world-verification) verifies the live sample automatically (on every PR and daily), so generator/verifier drift is caught without a manual pre-release step. You can also run it locally:
+
+```bash
+npm run verify:real            # download + fully verify the live sample (TSA included)
+npm run verify:real -- --skip-tsa
+```
+
+## Real-world verification
+
+Unit tests run against static fixtures with the TSA CA-cert fetch stubbed. That cannot catch a Node crypto regression, an `openssl` behaviour change, a `fetch` change, or generator/verifier drift on the published sample — exactly the breakage a dependency bump can introduce. The [`real-world` workflow](.github/workflows/real-world.yml) closes that gap so dependency PRs can be merged on a green check instead of manual testing. It runs on every PR, on `main`, daily on a schedule, and on demand (`workflow_dispatch`), on Node 20 and 22.
+
+It has two layers:
+
+1. **Deterministic hard gate (offline).** It installs the packed tarball and verifies the bundled sample with the *full* TSA pipeline — real `openssl ts -verify` against the bundled CA cert (`--ca-file`), no network. Real Ed25519 + SHA-256 + openssl, never flaky, **always blocks**. A dependency bump that breaks the actual crypto fails here regardless of any third-party uptime.
+2. **Smart live check (network).** It downloads the live published sample and verifies it with the full live TSA path (real CA-cert fetch). [`scripts/real-world-verify.mjs`](scripts/real-world-verify.mjs) classifies the result so a genuine `FAILED` verdict (exit 1) is told apart from an apparent third-party outage (exit 75). A genuine failure always blocks. An outage only **warns** on PRs — but **hard-fails** on `main`, scheduled, and dispatch runs, so the daily run turns (and stays) red until a persistent outage, or a real failure masquerading as one, is investigated.
 
 ## Release workflow
 

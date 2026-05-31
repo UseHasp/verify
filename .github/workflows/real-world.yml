@@ -1,0 +1,124 @@
+name: real-world
+
+# End-to-end "does the tool still verify a real export?" check, run the way an
+# auditor actually runs it: install the packed tarball, then verify a live
+# published sample with the FULL pipeline including the RFC 3161 TSA anchor
+# (real `openssl ts -verify` + a real network fetch of the TSA CA cert).
+#
+# This is the confidence signal for merging dependency / Node bumps without
+# manual testing — the unit suite only runs against static fixtures with the
+# TSA fetch stubbed, so it cannot catch a Node crypto regression, an openssl
+# behaviour change, a fetch change, or generator/verifier drift on the live
+# sample. This workflow can.
+#
+# Two layers, by design:
+#   1. A deterministic, offline hard gate: full TSA via real openssl against the
+#      bundled CA cert. No network, never flaky, ALWAYS blocks — so a genuine
+#      crypto/openssl/Node break can never hide behind a third-party outage.
+#   2. A smart live check against the published sample. A real FAILED verdict
+#      blocks; an apparent outage only warns on PRs, but HARD-FAILS on scheduled
+#      and main runs so a persistent outage — or a real failure masquerading as
+#      one — is always surfaced and investigated.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    # Daily at 06:17 UTC. Catches live-sample / TSA-cert drift even with no PRs,
+    # and is the run where an "outage" is treated as a hard failure.
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: real-world-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  real-world:
+    name: real-world (node ${{ matrix.node }})
+    # Ubuntu only: macOS ships LibreSSL, whose `openssl ts -verify` behaves
+    # differently (see README "macOS LibreSSL caveat"), which would make the
+    # TSA check spuriously flaky.
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 22]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - run: openssl version
+      - run: npm ci
+
+      # Pack and install the tarball into a throwaway dir, exactly as a user
+      # would get it from npm — exercises `files`, `bin`, and the shebang, not
+      # just the source tree.
+      - name: Pack + install as a real user
+        shell: bash
+        run: |
+          set -euo pipefail
+          tarball=$(npm pack 2>/dev/null | tail -1)
+          mkdir -p /tmp/smoke
+          (cd /tmp/smoke && npm init -y >/dev/null && npm install "$GITHUB_WORKSPACE/$tarball" >/dev/null)
+          rm -f "$GITHUB_WORKSPACE/$tarball"
+          echo "BIN=/tmp/smoke/node_modules/.bin/hasp-verify" >> "$GITHUB_ENV"
+
+      - name: Bin runs
+        run: "$BIN" --version
+
+      # ---- Layer 1: deterministic hard gate (no network) ----
+      # Full RFC 3161 TSA verification via real `openssl ts -verify`, using the
+      # bundled CA cert. Real Ed25519 + SHA-256 + openssl, zero network → always
+      # blocks. A dependency bump that breaks the actual crypto fails HERE,
+      # regardless of whether any third-party service is up.
+      - name: Verify bundled sample — full TSA, offline (hard gate)
+        run: |
+          "$BIN" "$GITHUB_WORKSPACE/test/fixtures/valid.json" \
+            --ca-file "$GITHUB_WORKSPACE/test/fixtures/tsa-cacert.pem"
+
+      # ---- Layer 2: smart live check (network) ----
+      # Download the live published sample and verify it with the full live TSA
+      # path. The harness classifies the outcome; this step maps an apparent
+      # outage to a warning on PRs but a hard failure everywhere else.
+      - name: Verify live published sample — full TSA (smart)
+        shell: bash
+        env:
+          URL: https://usehasp.com/trust/audit-export-sample.json
+        run: |
+          set +e
+          node scripts/real-world-verify.mjs --bin "$BIN" --url "$URL"
+          code=$?
+          set -e
+          case "$code" in
+            0)
+              echo "Live sample VERIFIED."
+              ;;
+            1)
+              echo "::error::Real-world verification FAILED — the published tool no longer verifies the live sample. This is a genuine regression, not an outage."
+              exit 1
+              ;;
+            75)
+              if [ "${{ github.event_name }}" = "pull_request" ]; then
+                echo "::warning::Live real-world check could not complete (apparent third-party outage). Not blocking this PR — re-run once the outage clears. If it keeps recurring, investigate: the daily scheduled run will turn red and stay red until it's resolved."
+                exit 0
+              else
+                echo "::error::Live real-world check could not complete on a ${{ github.event_name }} run (apparent outage). Failing on purpose so a persistent outage — or a real failure masquerading as one — gets investigated rather than silently ignored."
+                exit 1
+              fi
+              ;;
+            *)
+              echo "::error::Unexpected exit code $code from real-world-verify."
+              exit 1
+              ;;
+          esac
