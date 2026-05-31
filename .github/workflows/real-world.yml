@@ -14,16 +14,18 @@ name: real-world
 #
 # Strict gate: any result other than VERIFIED fails the job and blocks the PR.
 # Third-party outages (freetsa.org unreachable / CA-cert URL down) fail too,
-# by design — re-run the job once the service recovers. The daily scheduled run
-# surfaces CA-cert / generator drift even when no PRs are open.
+# by design — re-run the job once the service recovers. The fortnightly
+# scheduled run surfaces CA-cert / generator drift even when no PRs are open.
 
 on:
   pull_request:
   push:
     branches: [main]
   schedule:
-    # Daily at 06:17 UTC — catches TSA CA-cert rotation and live drift with no PR.
-    - cron: "17 6 * * *"
+    # 06:17 UTC on the 1st and 15th of each month (~every two weeks) — catches
+    # TSA CA-cert rotation and live drift with no PR. Cron has no native
+    # fortnightly expression; 1st/15th is the clean, drift-free approximation.
+    - cron: "17 6 1,15 * *"
   workflow_dispatch:
 
 concurrency:
