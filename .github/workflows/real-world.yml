@@ -1,21 +1,29 @@
 name: real-world
 
-# Real-world end-to-end verification: run the actual tool against a real signed
-# export through the FULL pipeline — real Ed25519, real SHA-256, a real network
-# fetch of the TSA CA certificate, and a real `openssl ts -verify` of the RFC
-# 3161 anchor. No `--skip-tsa`, no stubbed fetch, no bundled CA cert.
+# Real-world end-to-end verification: run the actual tool against the LIVE
+# published audit export — the one anyone can download from the marketing site —
+# through the FULL pipeline: real Ed25519, real SHA-256, a real network fetch of
+# the TSA CA certificate, and a real `openssl ts -verify` of the RFC 3161 anchor.
+# No `--skip-tsa`, no stubbed fetch, no bundled CA cert.
 #
-# Why this exists: the unit suite (workflow `test`) runs against static fixtures
-# with the TSA fetch mocked, so it cannot catch a Node crypto regression, an
-# `openssl` behaviour change, a global `fetch` change, or a CA-cert rotation.
-# Those are exactly the breakages a dependency or Node bump can introduce. This
-# workflow does catch them, so a dependency-update PR can be merged on a green
-# check instead of manual testing.
+# Why the LIVE sample and not the committed fixture: the unit suite (workflow
+# `test`) verifies test/fixtures/valid.json, a copy frozen into this repo. That
+# proves the verifier is self-consistent with a file we froze — it does NOT
+# prove the verifier still agrees with what the platform produces *now*. If the
+# platform changes how it generates exports, the live sample changes while the
+# committed copy keeps passing forever, hiding a real break. Verifying the live
+# sample closes that gap and is what lets a dependency-update PR be merged on a
+# green check instead of manual testing.
 #
-# Strict gate: any result other than VERIFIED fails the job and blocks the PR.
-# Third-party outages (freetsa.org unreachable / CA-cert URL down) fail too,
-# by design — re-run the job once the service recovers. The fortnightly
-# scheduled run surfaces CA-cert / generator drift even when no PRs are open.
+# Two checks here, by design:
+#   1. Verify the live published sample through the full TSA pipeline.
+#   2. Drift guard: assert the committed fixture still matches the live sample,
+#      so the repo copy (used by the offline unit tests) can't silently rot.
+#
+# Strict gate: any non-VERIFIED result fails the job and blocks the PR. A
+# third-party outage (usehasp.com or freetsa.org unreachable) fails too, by
+# design — re-run once the service recovers. The fortnightly scheduled run
+# surfaces generator / CA-cert drift even when no PRs are open.
 
 on:
   pull_request:
@@ -23,8 +31,8 @@ on:
     branches: [main]
   schedule:
     # 06:17 UTC on the 1st and 15th of each month (~every two weeks) — catches
-    # TSA CA-cert rotation and live drift with no PR. Cron has no native
-    # fortnightly expression; 1st/15th is the clean, drift-free approximation.
+    # generator / TSA CA-cert drift with no PR. Cron has no native fortnightly
+    # expression; 1st/15th is the clean, drift-free approximation.
     - cron: "17 6 1,15 * *"
   workflow_dispatch:
 
@@ -34,6 +42,11 @@ concurrency:
 
 permissions:
   contents: read
+
+env:
+  # The live, publicly verifiable sample published by the platform. This is the
+  # source of truth the committed fixture is meant to mirror.
+  SAMPLE_URL: https://usehasp.com/trust/audit-export-sample.json
 
 jobs:
   real-world:
@@ -59,9 +72,24 @@ jobs:
       - run: openssl version
       - run: npm ci
 
-      # The real-world check. Verifies the signed sample export through the full
-      # pipeline including a live TSA CA-cert fetch and `openssl ts -verify`.
-      # Exit 0 == VERIFIED; any other exit (failed check, network/openssl error)
-      # fails the job and blocks the merge.
-      - name: Verify signed export — full live TSA path
-        run: node src/cli.js test/fixtures/valid.json --verbose
+      # Download the live published sample. A failure here is a usehasp.com
+      # outage; the strict gate intentionally treats that as a hard failure.
+      - name: Download live published sample
+        run: |
+          curl --fail --show-error --silent --location \
+            --retry 3 --retry-delay 4 --retry-all-errors \
+            --max-time 30 \
+            -o live-sample.json "$SAMPLE_URL"
+          echo "Downloaded $(wc -c < live-sample.json) bytes from $SAMPLE_URL"
+
+      # The real-world check: verify the LIVE sample through the full pipeline,
+      # including a live TSA CA-cert fetch and `openssl ts -verify`. Exit 0 ==
+      # VERIFIED; any other exit (failed check, network/openssl error) fails the
+      # job and blocks the merge.
+      - name: Verify live sample — full live TSA path
+        run: node src/cli.js live-sample.json --verbose
+
+      # Drift guard: the committed fixture must still match the live sample, or
+      # the offline unit tests are validating a stale snapshot of reality.
+      - name: Assert committed fixture matches live sample
+        run: node scripts/check-fixture-drift.mjs live-sample.json test/fixtures/valid.json
