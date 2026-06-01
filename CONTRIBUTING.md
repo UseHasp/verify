@@ -41,17 +41,22 @@ The HTML coverage report is uploaded as a GitHub Actions artifact on every CI ru
 
 `test/fixtures/valid.json` is the canonical sample export. The four `broken-*.json` fixtures are generated from it by `test/fixtures/build-broken.js`. If `valid.json` changes, re-run that script and commit the regenerated broken fixtures.
 
-`valid.json` itself is kept in sync with the live sample at <https://usehasp.com/trust/audit-export-sample.json>. The [real-world workflow](#real-world-verification) verifies it through the full TSA pipeline automatically (on every PR and on a fortnightly schedule), so generator/verifier drift is caught without a manual pre-release step. You can also run it locally:
+`valid.json` itself is meant to mirror the live sample published by the platform at <https://usehasp.com/trust/audit-export-sample.json>. The [real-world workflow](#real-world-verification) verifies that live sample directly and asserts the committed fixture still matches it, so generator/verifier drift is caught automatically without a manual pre-release step. You can run the same verification locally:
 
 ```bash
-npm run verify:real    # full pipeline incl. live TSA fetch + openssl ts -verify
+npm run verify:real    # download + verify the LIVE published sample (full TSA)
 ```
 
 ## Real-world verification
 
-Unit tests run against static fixtures with the TSA CA-cert fetch stubbed. That cannot catch a Node crypto regression, an `openssl` behaviour change, a `fetch` change, or a CA-cert rotation — exactly the breakage a dependency or Node bump can introduce. The [`real-world` workflow](.github/workflows/real-world.yml) closes that gap so dependency PRs can be merged on a green check instead of manual testing. It runs on every PR, on `main`, on a fortnightly schedule (1st and 15th of each month), and on demand (`workflow_dispatch`), on Node 20 and 22.
+The unit suite verifies `test/fixtures/valid.json` — a copy of the published sample frozen into this repo, with the TSA CA-cert fetch stubbed. That proves the verifier is self-consistent with a file we froze; it does **not** prove the verifier still agrees with what the platform produces *now*. If the platform changes how it generates exports, the live sample changes while the committed copy keeps passing forever, hiding a real break. It also can't catch a Node crypto regression, an `openssl` behaviour change, a `fetch` change, or a CA-cert rotation — exactly the breakage a dependency or Node bump can introduce.
 
-It verifies the signed sample export through the **full** pipeline — real Ed25519, real SHA-256, a real network fetch of the TSA CA certificate, and a real `openssl ts -verify` of the RFC 3161 anchor (no `--skip-tsa`, no `--ca-file`, no stubbed fetch). It is a **strict gate**: any result other than `VERIFIED` fails the job and blocks the PR, including a third-party outage (re-run once the service recovers). The fortnightly scheduled run surfaces CA-cert / generator drift even when no PRs are open.
+The [`real-world` workflow](.github/workflows/real-world.yml) closes that gap so dependency PRs can be merged on a green check instead of manual testing. It runs on every PR, on `main`, on a fortnightly schedule (1st and 15th of each month), and on demand (`workflow_dispatch`), on Node 20 and 22. It does two things:
+
+1. **Verify the live published sample** through the **full** pipeline — downloads <https://usehasp.com/trust/audit-export-sample.json> and verifies it with real Ed25519, real SHA-256, a real network fetch of the TSA CA certificate, and a real `openssl ts -verify` of the RFC 3161 anchor (no `--skip-tsa`, no `--ca-file`, no stubbed fetch).
+2. **Drift guard** — asserts the committed `test/fixtures/valid.json` still matches the live sample (structural deep-equal, via [`scripts/check-fixture-drift.mjs`](scripts/check-fixture-drift.mjs)), so the snapshot the offline unit tests rely on can't silently rot. On a mismatch it prints the diverging field paths; refresh the fixture from the live sample and regenerate the `broken-*.json` fixtures with `test/fixtures/build-broken.js`.
+
+It is a **strict gate**: any non-`VERIFIED` result fails the job and blocks the PR, including a third-party outage (usehasp.com or freetsa.org unreachable — re-run once the service recovers). The fortnightly scheduled run surfaces generator / CA-cert drift even when no PRs are open.
 
 ## Release workflow
 
