@@ -20,15 +20,20 @@ Usage:
   hasp-verify <export.json> [options]
 
 Options:
-  --json           Emit machine-readable JSON instead of a human report.
-  --skip-tsa       Skip the RFC 3161 TSA anchor check (offline mode).
-  --ca-file <p>    Read TSA CA cert from local PEM file (no network).
-  --verbose        Print extra detail.
-  -h, --help       Show this help.
-  -v, --version    Show version.
+  --json             Emit machine-readable JSON instead of a human report.
+  --skip-tsa         Skip the RFC 3161 TSA anchor check (offline mode).
+  --skip-key-check   Skip the published-key fetch + match; verify signatures
+                     against the export's embedded key (provenance unconfirmed).
+  --ca-file <p>      Read TSA CA cert from local PEM file (no network).
+  --keys-file <p>    Read the published-keys document from a local JSON file
+                     instead of fetching GET /trust/keys/{tenant_id}.
+  --keys-url <u>     Override the published-keys URL.
+  --verbose          Print extra detail.
+  -h, --help         Show this help.
+  -v, --version      Show version.
 
 Read export from stdin by passing '-' as the file argument:
-  cat export.json | hasp-verify - --skip-tsa
+  cat export.json | hasp-verify - --skip-tsa --skip-key-check
 
 Exit codes: 0 verified, 1 failed, 2 usage error.
 
@@ -69,7 +74,10 @@ async function main(argv) {
   try {
     result = await verifyExport(data, {
       skipTsa: args.skipTsa,
+      skipKeyCheck: args.skipKeyCheck,
       caFile: args.caFile ?? undefined,
+      keysFile: args.keysFile ?? undefined,
+      keysUrl: args.keysUrl ?? undefined,
     });
   } catch (err) {
     process.stderr.write(`error: ${errMessage(err)}\n`);
@@ -86,15 +94,33 @@ async function main(argv) {
 
 /** @param {string[]} argv */
 function parseArgs(argv) {
-  /** @type {{file: string | null, json: boolean, skipTsa: boolean, caFile: string | null, verbose: boolean, help: boolean, version: boolean}} */
+  /** @type {{file: string | null, json: boolean, skipTsa: boolean, skipKeyCheck: boolean, caFile: string | null, keysFile: string | null, keysUrl: string | null, verbose: boolean, help: boolean, version: boolean}} */
   const out = {
     file: null,
     json: false,
     skipTsa: false,
+    skipKeyCheck: false,
     caFile: null,
+    keysFile: null,
+    keysUrl: null,
     verbose: false,
     help: false,
     version: false,
+  };
+  /**
+   * Consume the value for a `--flag <value>` / `--flag=value` option.
+   * @param {string} a @param {string} name @param {number} i
+   */
+  const valueFor = (a, name, i) => {
+    if (a === `--${name}`) {
+      const next = argv[i + 1];
+      if (next === undefined || next.startsWith("-")) {
+        process.stderr.write(`error: --${name} requires an argument\n`);
+        process.exit(2);
+      }
+      return { value: next, consumed: 2 };
+    }
+    return { value: a.slice(`--${name}=`.length), consumed: 1 };
   };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -102,17 +128,20 @@ function parseArgs(argv) {
     else if (a === "--version" || a === "-v") out.version = true;
     else if (a === "--json") out.json = true;
     else if (a === "--skip-tsa") out.skipTsa = true;
+    else if (a === "--skip-key-check") out.skipKeyCheck = true;
     else if (a === "--verbose") out.verbose = true;
-    else if (a === "--ca-file") {
-      const next = argv[i + 1];
-      if (!next || next.startsWith("-")) {
-        process.stderr.write(`error: --ca-file requires a path argument\n`);
-        process.exit(2);
-      }
-      out.caFile = next;
-      i++;
-    } else if (a.startsWith("--ca-file=")) {
-      out.caFile = a.slice("--ca-file=".length);
+    else if (a === "--ca-file" || a.startsWith("--ca-file=")) {
+      const { value, consumed } = valueFor(a, "ca-file", i);
+      out.caFile = value;
+      i += consumed - 1;
+    } else if (a === "--keys-file" || a.startsWith("--keys-file=")) {
+      const { value, consumed } = valueFor(a, "keys-file", i);
+      out.keysFile = value;
+      i += consumed - 1;
+    } else if (a === "--keys-url" || a.startsWith("--keys-url=")) {
+      const { value, consumed } = valueFor(a, "keys-url", i);
+      out.keysUrl = value;
+      i += consumed - 1;
     } else if (a === "-") {
       if (out.file) {
         process.stderr.write(`error: unexpected positional argument -\n`);
@@ -141,6 +170,11 @@ function printHuman(result, verbose, data) {
   const c = result.checks;
   line(c.schema, "schema valid");
   line(c.chain, (ok) => `chain intact (${ok.count} / ${ok.count} entries)`);
+  if ("skipped" in c.key && c.key.skipped) {
+    process.stdout.write("⚠ published-key check skipped (--skip-key-check)\n");
+  } else {
+    line(c.key, (ok) => `published key matched (${ok.key_id})`);
+  }
   line(c.signatures, (ok) => `signatures verified (${ok.count} / ${ok.count})`);
   if ("skipped" in c.tsa && c.tsa.skipped) {
     process.stdout.write("⚠ TSA anchor check skipped (--skip-tsa)\n");

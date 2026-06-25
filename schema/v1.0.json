@@ -14,7 +14,7 @@
       "additionalProperties": true,
       "properties": {
         "tenant": { "type": "string" },
-        "tenant_id": { "type": "string" },
+        "tenant_id": { "type": "string", "minLength": 1 },
         "range": {
           "type": "object",
           "required": ["from", "to"],
@@ -42,8 +42,9 @@
       "additionalProperties": true,
       "properties": {
         "algo": { "const": "ed25519" },
-        "public_key_pem": { "type": "string" },
-        "key_id": { "type": "string" },
+        "public_key_pem": { "type": "string", "pattern": "BEGIN PUBLIC KEY" },
+        "key_id": { "type": "string", "minLength": 1 },
+        "keys_url": { "type": "string", "format": "uri", "pattern": "^https://" },
         "key_published_at": { "type": "string" },
         "chain_head_hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
         "tsa_anchor_chain": {
@@ -60,11 +61,11 @@
             ],
             "additionalProperties": true,
             "properties": {
-              "checkpoint_after_entry": { "type": "number" },
+              "checkpoint_after_entry": { "type": "number", "minimum": 1 },
               "tsa_url": { "type": "string", "format": "uri", "pattern": "^https://" },
               "tsa_cacert_url": { "type": "string", "format": "uri", "pattern": "^https://" },
-              "tsa_tsr_base64": { "type": "string" },
-              "anchored_data": { "const": "chain_head_hash" }
+              "tsa_tsr_base64": { "type": "string", "minLength": 1 },
+              "anchored_data": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
             }
           }
         }
@@ -72,25 +73,40 @@
     },
     "entries": {
       "type": "array",
+      "minItems": 1,
       "items": {
         "type": "object",
         "required": [
-          "seq",
-          "timestamp",
-          "actor",
+          "user_id",
+          "org_id",
+          "project_id",
           "action",
-          "resource",
+          "entity_type",
+          "entity_id",
+          "metadata",
+          "ip_address",
+          "created_at",
+          "phi_disposition",
+          "subject_type",
+          "subject_id_hmac",
           "prev_hash",
           "hash",
           "signature"
         ],
         "additionalProperties": true,
         "properties": {
-          "seq": { "type": "number", "minimum": 1 },
-          "timestamp": { "type": "string" },
-          "actor": { "type": "object" },
-          "action": { "type": "string" },
-          "resource": { "type": "object" },
+          "user_id": { "type": ["integer", "string", "null"] },
+          "org_id": { "type": ["integer", "string", "null"] },
+          "project_id": { "type": ["integer", "string", "null"] },
+          "action": { "type": "string", "minLength": 1 },
+          "entity_type": { "type": ["string", "null"] },
+          "entity_id": { "type": ["integer", "string", "null"] },
+          "metadata": { "type": ["object", "array", "null"] },
+          "ip_address": { "type": ["string", "null"] },
+          "created_at": { "type": "string", "minLength": 1 },
+          "phi_disposition": { "type": ["string", "null"] },
+          "subject_type": { "type": ["string", "null"] },
+          "subject_id_hmac": { "type": ["string", "null"] },
           "prev_hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
           "hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
           "signature": { "type": "string", "pattern": "^ed25519:" }

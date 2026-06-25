@@ -14,10 +14,23 @@ export interface VerifyOptions {
   /** Skip the RFC 3161 TSA anchor check (offline mode). */
   skipTsa?: boolean;
   /**
+   * Skip the published-key fetch + match. Signatures are then verified against
+   * the export's embedded `verification.public_key_pem`, whose provenance is
+   * unconfirmed.
+   */
+  skipKeyCheck?: boolean;
+  /**
    * Read TSA CA certificate from this local PEM file instead of fetching
    * `tsa_cacert_url`. Useful for air-gapped or long-term archival verification.
    */
   caFile?: string;
+  /**
+   * Read the published-keys document from this local JSON file instead of
+   * fetching `GET /trust/keys/{tenant_id}`. Useful for offline verification.
+   */
+  keysFile?: string;
+  /** Override the published-keys URL. */
+  keysUrl?: string;
   /** Inject a fetch implementation (for testing). */
   fetcher?: typeof fetch;
   /** Override the `openssl` binary path. */
@@ -32,6 +45,7 @@ export type CheckResult = CheckOk | CheckFail | CheckSkipped | CheckNotRun;
 
 export interface TsaAnchorResult {
   tsa_url: string;
+  anchored_data: string;
   output: string;
 }
 
@@ -41,16 +55,19 @@ export interface VerifyResult {
   checks: {
     schema: CheckResult;
     chain: CheckResult;
+    key: CheckResult;
     signatures: CheckResult;
     tsa: CheckResult;
   };
 }
 
 /**
- * Verify a parsed Hasp audit export. Runs schema, chain, signature, and
- * TSA-anchor checks in order; short-circuits on first failure.
+ * Verify a parsed Hasp audit export. Runs the schema preflight, then the chain,
+ * published-key, signature, and TSA-anchor checks in order; short-circuits on
+ * the first failure.
  *
  * @param data Parsed audit-export JSON (the result of `JSON.parse`).
- * @param opts Optional overrides — skip TSA, inject fetch, override openssl path.
+ * @param opts Optional overrides — skip TSA / key check, supply local key or CA
+ *   files, inject fetch, override openssl path.
  */
 export function verifyExport(data: unknown, opts?: VerifyOptions): Promise<VerifyResult>;

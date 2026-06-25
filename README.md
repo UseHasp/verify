@@ -20,10 +20,11 @@
 
 **For auditors, compliance reviewers, and customers who want to verify Hasp audit exports for themselves.**
 
-Hasp signs every audit-log entry with an Ed25519 key and chains them with SHA-256, then anchors the chain head with an RFC 3161 timestamp from an independent TSA. This tool re-runs those four checks on an export so you don't have to trust Hasp's word for it. The same checks can be run by hand from the [manual recipe](https://usehasp.com/trust/verify) — this tool is a convenience, not a trust anchor.
+Hasp hashes every audit-log entry into a tamper-evident chain, signs each one with a per-tenant Ed25519 key published out-of-band, and anchors the chain with an RFC 3161 timestamp from an independent TSA. This tool re-runs those checks on an export so you don't have to trust Hasp's word for it. The same checks can be run by hand from the [manual recipe](https://usehasp.com/trust/verify) — this tool is a convenience, not a trust anchor.
 
-- **Offline.** No service calls. One optional network fetch (TSA CA cert) you can disable or replace with a local file.
-- **Auditable.** Under 400 LOC of plain JS over Node `crypto` + `openssl ts`. Read it in one sitting.
+- **Standard primitives.** SHA-256, Ed25519, RFC 3161 — verified with Node `crypto` and `openssl ts`. No bespoke crypto.
+- **Two network fetches, both replaceable.** The published-key document and the TSA CA cert. Supply both locally (`--keys-file`, `--ca-file`) for fully offline operation.
+- **Auditable.** A few hundred lines of plain JS. Read it in one sitting.
 - **Reproducible.** npm provenance + Sigstore attestation on every release. Same input → same verdict, forever.
 
 <details>
@@ -57,6 +58,7 @@ Expected output:
 ```
 ✓ schema valid
 ✓ chain intact (4 / 4 entries)
+✓ published key matched (key_01J9YV0F3JBA7Z2N8D5Q3R7V8M)
 ✓ signatures verified (4 / 4)
 ✓ TSA anchor valid
   — https://freetsa.org/tsr
@@ -96,7 +98,7 @@ hasp-verify export.json
 
 - **Node.js 20+** (uses built-in `node:crypto` Ed25519, no native deps).
 - **OpenSSL 1.1+** on `PATH` (used only for `openssl ts -verify` — RFC 3161 TSA anchor check). Skip with `--skip-tsa` if you don't have it.
-- **Network** to fetch the TSA CA certificate (URL is in the export). Skip with `--skip-tsa` or pass `--ca-file <path>` for fully offline operation.
+- **Network** for two fetches: the published-key document (`GET /trust/keys/{tenant_id}`) and the TSA CA certificate (URL is in the export). Supply them locally with `--keys-file <path>` and `--ca-file <path>` (or `--skip-key-check` / `--skip-tsa`) for fully offline operation.
 
 > **macOS LibreSSL caveat.** macOS ships LibreSSL by default and `openssl ts -verify` behaves differently from OpenSSL. Install OpenSSL 3 via Homebrew (`brew install openssl@3`) and put it first on `PATH`, or pass `--skip-tsa`.
 
@@ -118,24 +120,28 @@ sudo apt-get install nodejs openssl
 hasp-verify <export.json | -> [options]
 
 Options:
-  --json           Emit machine-readable JSON instead of a human report.
-  --skip-tsa       Skip the RFC 3161 TSA anchor check (offline mode).
-  --ca-file <p>    Read TSA CA cert from a local PEM file (no network).
-  --verbose        Print extra detail (success: summary; failure: full check JSON).
-  -h, --help       Show help.
-  -v, --version    Show version.
+  --json             Emit machine-readable JSON instead of a human report.
+  --skip-tsa         Skip the RFC 3161 TSA anchor check (offline mode).
+  --skip-key-check   Skip the published-key fetch + match; verify signatures
+                     against the embedded key (provenance unconfirmed).
+  --ca-file <p>      Read TSA CA cert from a local PEM file (no network).
+  --keys-file <p>    Read the published-keys document from a local JSON file.
+  --keys-url <u>     Override the published-keys URL.
+  --verbose          Print extra detail (success: summary; failure: full check JSON).
+  -h, --help         Show help.
+  -v, --version      Show version.
 ```
 
 Read from stdin by passing `-` as the file argument:
 
 ```bash
-cat export.json | hasp-verify - --skip-tsa
+cat export.json | hasp-verify - --skip-tsa --skip-key-check
 ```
 
-Verify the TSA anchor fully offline with a previously archived CA cert (see [docs/AIR-GAPPED.md](docs/AIR-GAPPED.md)):
+Verify fully offline with a previously archived CA cert and keys document (see [docs/AIR-GAPPED.md](docs/AIR-GAPPED.md)):
 
 ```bash
-hasp-verify export.json --ca-file ./freetsa-cacert.pem
+hasp-verify export.json --ca-file ./freetsa-cacert.pem --keys-file ./trust-keys.json
 ```
 
 Exit codes:
@@ -150,16 +156,18 @@ Exit codes:
 
 Algorithms are pinned: **Ed25519** for signatures, **SHA-256** for the chain, **RFC 3161** for the timestamp anchor. The tool rejects exports that declare anything else.
 
-Four checks, in this order. Any failure stops the run and reports the failing check.
+A schema preflight runs first, then four cryptographic checks. Any failure stops the run and reports the failing check.
 
-1. **Schema** — `schema_version` is `1.0`, all required fields present, `entries[*].seq` is 1-indexed and contiguous, `chain_head_hash` is 64-hex, TSA URLs are `https:`.
+0. **Schema** *(preflight)* — `schema_version` is `1.0`, every required field is present (including all integrity-hash columns on each entry), hashes are 64-hex, TSA URLs are `https:`.
    → *proves the export has the shape downstream checks expect; malformed input fails loudly instead of being silently coerced.*
-2. **Hash chain** — for every entry, `sha256(prev_hash_hex || canonical_json(entry_without_hash_and_signature))` matches the declared `entry.hash`. The final entry's hash matches `verification.chain_head_hash`.
-   → *proves no entry was added, removed, or mutated after signing — any tampering breaks the chain.*
-3. **Signatures** — every entry's `ed25519:<base64>` signature verifies against `verification.public_key_pem` over the same canonical payload.
-   → *proves each entry was signed by the holder of the published key, not anyone else.*
-4. **TSA anchor** — for each anchor in `tsa_anchor_chain`: decode TSR, fetch CA cert from `tsa_cacert_url` (or read from `--ca-file`), run `openssl ts -verify -in <tsr> -CAfile <cacert> -data <chain_head_hash_ascii>`, require `Verification: OK`.
-   → *proves the chain head existed at the timestamped instant; an attacker who later compromises the signing key cannot retroactively forge older entries without also compromising the TSA.*
+1. **Hash chain** — for every entry, the integrity hash recomputed from its audit-log fields (`sha256` of the canonical field array — see [docs/SCHEMA.md](docs/SCHEMA.md)) matches the declared `entry.hash`; each `entry.prev_hash` equals the previous entry's `hash`; the last entry's hash equals `chain_head_hash`; and each anchor's `anchored_data` equals its checkpoint entry's hash.
+   → *proves no entry was added, removed, or mutated after signing, and binds the timestamp to this chain.*
+2. **Published key** — fetch `GET https://app.usehasp.com/trust/keys/{tenant_id}` (or `--keys-file`), find the key whose `key_id` matches `verification.key_id`, confirm it is not revoked, and confirm it matches the embedded `public_key_pem`. The matched **published** key is what signatures are then verified against.
+   → *proves the signing key is the tenant's real, published key — not one an attacker embedded and signed with.*
+3. **Signatures** — every entry's `ed25519:<base64>` signature verifies against the published key, over the entry's `hash` **hex string**.
+   → *proves each entry was signed by the holder of the published key; the chain check already tied that hash to the entry's contents.*
+4. **TSA anchor** — for each anchor in `tsa_anchor_chain`: decode TSR, fetch CA cert from `tsa_cacert_url` (or read from `--ca-file`), run `openssl ts -verify -in <tsr> -CAfile <cacert> -data <anchored_data>`, require `Verification: OK`.
+   → *proves the checkpointed hash existed at the timestamped instant; an attacker who later compromises the signing key cannot retroactively forge older entries without also compromising the TSA.*
 
 Field-by-field schema reference: [docs/SCHEMA.md](docs/SCHEMA.md). Machine-readable JSON Schema: [schema/v1.0.json](schema/v1.0.json).
 
@@ -188,7 +196,7 @@ if (!result.ok) {
 
 | Export `schema_version` | Tool version | Status   |
 |-------------------------|--------------|----------|
-| `1.0`                   | `1.x`        | current  |
+| `1.0`                   | `2.x`        | current  |
 
 ## Trust & provenance
 
@@ -235,7 +243,7 @@ It doesn't, by design. The tool is a convenience layer over the same primitives 
 <details>
 <summary><strong>Does it phone home?</strong></summary>
 
-No. The tool touches the network for exactly one thing: fetching the TSA CA certificate at the URL embedded in the export. That fetch is capped at 15 s and 1 MB. Pass `--skip-tsa` to disable it entirely, or `--ca-file <path>` to read the cert from disk. No analytics, no error reporting, no update checks.
+No. The tool touches the network for exactly two things: fetching the published-key document (`GET /trust/keys/{tenant_id}`) and fetching the TSA CA certificate at the URL embedded in the export. Both fetches are capped at 15 s and 1 MB. Supply them from disk with `--keys-file <path>` and `--ca-file <path>`, or disable them with `--skip-key-check` and `--skip-tsa`. No analytics, no error reporting, no update checks.
 </details>
 
 <details>
@@ -245,9 +253,10 @@ Yes, if you archive the TSA CA certificate alongside the export. The certificate
 
 - `export.json`
 - the CA cert PEM downloaded at export time (from `tsa_cacert_url`)
+- the published-keys document downloaded at export time (from `/trust/keys/{tenant_id}`)
 - a pinned copy of `@usehasp/verify` at the version that produced `VERIFIED`
 
-Then run `hasp-verify export.json --ca-file ./tsa-cacert.pem` to verify against the local cert with no network access. `--skip-tsa` lets you re-run the schema, chain, and signature checks indefinitely even without the cert. Full cookbook: [docs/AIR-GAPPED.md](docs/AIR-GAPPED.md).
+Then run `hasp-verify export.json --ca-file ./tsa-cacert.pem --keys-file ./trust-keys.json` to verify against the local files with no network access. `--skip-tsa` / `--skip-key-check` let you re-run the remaining checks indefinitely even without those files. Full cookbook: [docs/AIR-GAPPED.md](docs/AIR-GAPPED.md).
 </details>
 
 ## Security

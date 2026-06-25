@@ -1,50 +1,76 @@
 /**
- * Check 1: hash chain integrity.
+ * Check: hash chain integrity.
  *
- * For each entry, compute SHA-256 of (prev_hash_hex || canonical_payload),
- * where canonical_payload is the entry with the `hash` and `signature`
- * fields removed and object keys sorted.
+ * Three independent guarantees, all recomputable from the envelope alone:
  *
- * Matches the algorithm in apps/marketing/scripts/generate-audit-sample.js
- * and the published manual recipe at /trust/verify.
+ *   1. Integrity — for every entry, the integrity hash recomputed from its
+ *      audit-log fields (see src/hash.js) equals the declared `entry.hash`.
+ *      Any mutation of a hashed field breaks this.
+ *   2. Linkage — every entry's `prev_hash` equals the previous entry's `hash`
+ *      (the separate `prev_hash` column check; the integrity hash does NOT fold
+ *      in `prev_hash`). This proves no entry was inserted or removed between two
+ *      that remain.
+ *   3. Anchoring — `chain_head_hash` equals the last entry's `hash`, and every
+ *      TSA anchor's `anchored_data` equals the `hash` of the entry at its
+ *      `checkpoint_after_entry`. This binds the timestamp(s) to this chain.
+ *
+ * Note on slices: an export may be a window of a longer chain, so the FIRST
+ * entry's `prev_hash` legitimately points at a row outside the export. Linkage
+ * is therefore only asserted between consecutive entries that are both present.
  */
-import { createHash } from "node:crypto";
-import { canonicalSorted } from "../canonical.js";
-
-const ZERO_HASH = "0".repeat(64);
+import { computeIntegrityHash } from "../hash.js";
 
 /**
- * @param {{entries: any[], verification: {chain_head_hash: string}}} data
+ * @param {{entries: any[], verification: {chain_head_hash: string, tsa_anchor_chain: any[]}}} data
  * @returns {{ok: true, count: number} | {ok: false, error: string}}
  */
 export function checkChain(data) {
-  let prev = ZERO_HASH;
-  for (const entry of data.entries) {
-    if (entry.prev_hash !== prev) {
+  const entries = data.entries;
+
+  for (let i = 0; i < entries.length; i++) {
+    const entry = entries[i];
+
+    const computed = computeIntegrityHash(entry);
+    if (computed !== entry.hash) {
       return {
         ok: false,
-        error: `entry seq=${entry.seq} prev_hash mismatch: declared ${entry.prev_hash}, computed ${prev}`,
+        error: `chain broken at entry ${i + 1}: recomputed hash ${computed}, declared ${entry.hash}`,
       };
     }
-    const { hash, signature, ...rest } = entry;
-    void signature;
-    const payload = canonicalSorted(rest);
-    const computed = createHash("sha256")
-      .update(prev + payload)
-      .digest("hex");
-    if (computed !== hash) {
+
+    if (i > 0 && entry.prev_hash !== entries[i - 1].hash) {
       return {
         ok: false,
-        error: `chain broken at seq=${entry.seq}: computed ${computed}, declared ${hash}`,
+        error: `chain linkage broken at entry ${i + 1}: prev_hash ${entry.prev_hash} does not match previous entry hash ${entries[i - 1].hash}`,
       };
     }
-    prev = hash;
   }
-  if (prev !== data.verification.chain_head_hash) {
+
+  const head = entries[entries.length - 1].hash;
+  if (head !== data.verification.chain_head_hash) {
     return {
       ok: false,
-      error: `chain head mismatch: computed ${prev}, declared ${data.verification.chain_head_hash}`,
+      error: `chain head mismatch: last entry hash ${head}, declared chain_head_hash ${data.verification.chain_head_hash}`,
     };
   }
-  return { ok: true, count: data.entries.length };
+
+  // Each TSA checkpoint must anchor the hash of an actual entry in this export.
+  for (const [i, anchor] of data.verification.tsa_anchor_chain.entries()) {
+    const pos = anchor.checkpoint_after_entry;
+    if (!Number.isInteger(pos) || pos < 1 || pos > entries.length) {
+      return {
+        ok: false,
+        error: `tsa_anchor_chain[${i}].checkpoint_after_entry ${pos} is out of range (1..${entries.length})`,
+      };
+    }
+    const checkpointHash = entries[pos - 1].hash;
+    if (anchor.anchored_data !== checkpointHash) {
+      return {
+        ok: false,
+        error: `tsa_anchor_chain[${i}].anchored_data ${anchor.anchored_data} does not match the hash of entry ${pos} (${checkpointHash})`,
+      };
+    }
+  }
+
+  return { ok: true, count: entries.length };
 }
