@@ -198,4 +198,10 @@ describe("cli — argument handling", () => {
     expect(r.code).toBe(0);
     expect(r.stdout).toMatch(/VERIFIED\./);
   });
+
+  it("rejects an empty --flag=value (exit 2) instead of fetching an empty URL", async () => {
+    const r = await run([fixture("valid.json"), "--keys-url="]);
+    expect(r.code).toBe(2);
+    expect(r.stderr).toMatch(/--keys-url requires a non-empty argument/);
+  });
 });

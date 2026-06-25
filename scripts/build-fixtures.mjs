@@ -36,7 +36,7 @@
  */
 import { execFileSync } from "node:child_process";
 import { createPrivateKey, createPublicKey, sign as edSign } from "node:crypto";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -396,7 +396,7 @@ function issueTimestamp(data) {
     const tsr = execFileSync("openssl", ["base64", "-A", "-in", p("resp.tsr")])
       .toString()
       .trim();
-    const caCertPem = execFileSync("cat", [p("ca.crt")]).toString();
+    const caCertPem = readFileSync(p("ca.crt"), "utf8");
     return { tsrBase64: tsr, caCertPem };
   } finally {
     rmSync(dir, { recursive: true, force: true });

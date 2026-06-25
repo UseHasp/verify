@@ -112,15 +112,24 @@ function parseArgs(argv) {
    * @param {string} a @param {string} name @param {number} i
    */
   const valueFor = (a, name, i) => {
+    let value;
+    let consumed;
     if (a === `--${name}`) {
-      const next = argv[i + 1];
-      if (next === undefined || next.startsWith("-")) {
+      value = argv[i + 1];
+      consumed = 2;
+      if (value === undefined || value.startsWith("-")) {
         process.stderr.write(`error: --${name} requires an argument\n`);
         process.exit(2);
       }
-      return { value: next, consumed: 2 };
+    } else {
+      value = a.slice(`--${name}=`.length);
+      consumed = 1;
     }
-    return { value: a.slice(`--${name}=`.length), consumed: 1 };
+    if (value === "") {
+      process.stderr.write(`error: --${name} requires a non-empty argument\n`);
+      process.exit(2);
+    }
+    return { value, consumed };
   };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
