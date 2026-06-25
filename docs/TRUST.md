@@ -54,10 +54,11 @@ If the verdicts disagree, the manual recipe is authoritative. File an issue with
 
 | Threat | Mitigation |
 |--------|------------|
-| Forged entry inserted into export | Per-entry Ed25519 signature must verify against the published key. |
-| Entry mutated after signing | Hash chain breaks; `chain_head_hash` no longer matches. |
-| Entry deleted from middle of export | `seq` becomes non-contiguous (schema check) **and** chain breaks. |
-| Entire export forged (wrong signing key) | TSA anchor was signed against `chain_head_hash` at a known instant; attacker would need to reproduce the TSR retroactively. |
+| Forged entry inserted into export | Per-entry Ed25519 signature must verify against the **published** key (fetched from `/trust/keys/{tenant_id}`), not a key the attacker embedded. |
+| Entry mutated after signing | Recomputed integrity hash no longer matches `entry.hash`; the chain breaks. |
+| Entry deleted from middle of export | `prev_hash` linkage breaks (a remaining entry's `prev_hash` no longer matches its predecessor's `hash`). |
+| Attacker embeds their own signing key | Published-key check fails: the embedded `public_key_pem` doesn't match the tenant's published key for `key_id`. |
+| Entire export forged (wrong signing key) | TSA anchor was signed against the chain head at a known instant; attacker would need to reproduce the TSR retroactively. |
 | Malicious `tsa_cacert_url` in export | Schema enforces `https:`; fetch is capped at 15 s and 1 MB; `--skip-tsa` skips the fetch entirely. |
 | Compromised verifier on auditor's machine | Out of scope — re-run the manual recipe. |
 | Compromised npm tarball | Provenance + Sigstore attestation; verify with `npm audit signatures` or `gh attestation verify`. |

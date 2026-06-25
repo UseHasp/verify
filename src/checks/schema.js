@@ -1,16 +1,20 @@
 /**
- * Check 0: schema sanity.
+ * Preflight: schema sanity.
  *
- * Validates the top-level shape and required fields. Does not validate
- * cryptographic content — that's the job of the other checks. The goal here
- * is to fail loudly and early on malformed input, so later checks can assume
- * the fields exist.
+ * Validates the top-level shape and required fields of a schema_version "1.0"
+ * envelope so the cryptographic checks downstream can assume the fields exist.
+ * It does NOT validate cryptographic content — that's the job of the key,
+ * chain, signature, and TSA checks.
  *
- * Supported schema_version: "1.0".
+ * Reference envelope: `App\Services\Audit\AuditExportEnvelopeBuilder`.
  */
+import { INTEGRITY_FIELDS } from "../hash.js";
 
 const SUPPORTED_SCHEMA = "1.0";
-const ANCHORED_DATA_LITERAL = "chain_head_hash";
+const HEX64 = /^[0-9a-f]{64}$/;
+
+// Integrity fields that must be a non-null string (the rest may be null).
+const REQUIRED_STRING_FIELDS = new Set(["action", "created_at"]);
 
 /**
  * @param {any} data parsed export JSON
@@ -42,6 +46,9 @@ export function checkSchema(data) {
       return fail(`.export.range.${k} must be an ISO8601 string`);
     }
   }
+  if (typeof e.tenant_id !== "string" || e.tenant_id.length === 0) {
+    return fail(".export.tenant_id must be a non-empty string");
+  }
 
   const v = data.verification;
   if (!v || typeof v !== "object") return fail("missing .verification object");
@@ -57,8 +64,18 @@ export function checkSchema(data) {
   ]) {
     if (!(k in v)) return fail(`missing .verification.${k}`);
   }
-  if (typeof v.chain_head_hash !== "string" || !/^[0-9a-f]{64}$/.test(v.chain_head_hash)) {
+  if (typeof v.key_id !== "string" || v.key_id.length === 0) {
+    return fail(".verification.key_id must be a non-empty string");
+  }
+  if (typeof v.public_key_pem !== "string" || !/BEGIN PUBLIC KEY/.test(v.public_key_pem)) {
+    return fail(".verification.public_key_pem must be a PEM-encoded public key");
+  }
+  if (typeof v.chain_head_hash !== "string" || !HEX64.test(v.chain_head_hash)) {
     return fail(".verification.chain_head_hash must be 64 hex chars (SHA-256)");
+  }
+  if ("keys_url" in v) {
+    const urlErr = validateHttpsUrl(v.keys_url);
+    if (urlErr) return fail(`.verification.keys_url: ${urlErr}`);
   }
   if (!Array.isArray(v.tsa_anchor_chain) || v.tsa_anchor_chain.length === 0) {
     return fail(".verification.tsa_anchor_chain must be a non-empty array");
@@ -77,48 +94,48 @@ export function checkSchema(data) {
       const urlErr = validateHttpsUrl(a[k]);
       if (urlErr) return fail(`.verification.tsa_anchor_chain[${i}].${k}: ${urlErr}`);
     }
-    if (a.anchored_data !== ANCHORED_DATA_LITERAL) {
+    if (typeof a.anchored_data !== "string" || !HEX64.test(a.anchored_data)) {
       return fail(
-        `.verification.tsa_anchor_chain[${i}].anchored_data must be ${JSON.stringify(
-          ANCHORED_DATA_LITERAL,
-        )} (got ${JSON.stringify(a.anchored_data)})`,
+        `.verification.tsa_anchor_chain[${i}].anchored_data must be 64 hex chars (the hash the TSA covers)`,
       );
+    }
+    if (typeof a.tsa_tsr_base64 !== "string" || a.tsa_tsr_base64.length === 0) {
+      return fail(`.verification.tsa_anchor_chain[${i}].tsa_tsr_base64 must be a base64 string`);
     }
   }
 
   if (!Array.isArray(data.entries)) return fail("missing .entries array");
+  if (data.entries.length === 0) return fail(".entries must be a non-empty array");
   if (data.entries.length !== e.entry_count) {
     return fail(
       `entry count mismatch: .export.entry_count = ${e.entry_count}, .entries.length = ${data.entries.length}`,
     );
   }
   for (const [i, entry] of data.entries.entries()) {
-    if (!entry || typeof entry !== "object") return fail(`entry[${i}] not an object`);
-    for (const k of [
-      "seq",
-      "timestamp",
-      "actor",
-      "action",
-      "resource",
-      "prev_hash",
-      "hash",
-      "signature",
-    ]) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      return fail(`entry[${i}] not an object`);
+    }
+    // All integrity fields must be present (even if null) so the hash is
+    // recomputable from the envelope alone.
+    for (const k of INTEGRITY_FIELDS) {
       if (!(k in entry)) return fail(`entry[${i}] missing .${k}`);
     }
-    if (entry.seq !== i + 1) {
-      return fail(`entry[${i}].seq must be ${i + 1} (1-indexed, contiguous), got ${entry.seq}`);
-    }
-    for (const k of ["actor", "resource"]) {
-      if (!entry[k] || typeof entry[k] !== "object" || Array.isArray(entry[k])) {
-        return fail(`entry[${i}].${k} must be an object`);
+    for (const k of REQUIRED_STRING_FIELDS) {
+      if (typeof entry[k] !== "string" || entry[k].length === 0) {
+        return fail(`entry[${i}].${k} must be a non-empty string`);
       }
+    }
+    for (const k of ["prev_hash", "hash", "signature"]) {
+      if (!(k in entry)) return fail(`entry[${i}] missing .${k}`);
+    }
+    if (typeof entry.prev_hash !== "string" || !HEX64.test(entry.prev_hash)) {
+      return fail(`entry[${i}].prev_hash must be 64 hex chars`);
+    }
+    if (typeof entry.hash !== "string" || !HEX64.test(entry.hash)) {
+      return fail(`entry[${i}].hash must be 64 hex chars`);
     }
     if (typeof entry.signature !== "string" || !entry.signature.startsWith("ed25519:")) {
       return fail(`entry[${i}].signature must be "ed25519:<base64>"`);
-    }
-    if (typeof entry.hash !== "string" || !/^[0-9a-f]{64}$/.test(entry.hash)) {
-      return fail(`entry[${i}].hash must be 64 hex chars`);
     }
   }
 

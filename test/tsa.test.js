@@ -1,8 +1,8 @@
 /**
  * Unit tests for checkTsa using an injected mock fetcher.
  *
- * The TSA CA certificate is bundled at test/fixtures/tsa-cacert.pem so
- * tests are fully offline. openssl must be on PATH (skipped if not).
+ * The TSA CA certificate is bundled at test/fixtures/tsa-cacert.pem so tests
+ * are fully offline. openssl must be on PATH (the asserting tests no-op if not).
  */
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -41,6 +41,7 @@ describe("checkTsa", () => {
     expect(r.ok).toBe(true);
     expect(r.anchors).toHaveLength(1);
     expect(r.anchors[0].output).toMatch(/Verification:\s*OK/);
+    expect(r.anchors[0].anchored_data).toBe(VALID.verification.chain_head_hash);
   });
 
   it("fails when TSR is tampered", async () => {
@@ -50,10 +51,10 @@ describe("checkTsa", () => {
     expect(r.error).toMatch(/openssl ts -verify failed/);
   });
 
-  it("fails when chain head doesn't match TSR-signed data", async () => {
+  it("fails when anchored_data doesn't match the TSR-signed data", async () => {
     if (!hasOpenssl) return;
     const d = JSON.parse(JSON.stringify(VALID));
-    d.verification.chain_head_hash = "0".repeat(64);
+    d.verification.tsa_anchor_chain[0].anchored_data = "0".repeat(64);
     const r = await checkTsa(d, { fetcher: mockFetcher(CACERT) });
     expect(r.ok).toBe(false);
     expect(r.error).toMatch(/openssl ts -verify failed/);

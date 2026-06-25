@@ -1,0 +1,17 @@
+{
+  "tenant_id": "org_01J9ZK7Q2M4X8B3C6D5E7F0G1H",
+  "keys": [
+    {
+      "key_id": "key_01J9YV0F3JBA7Z2N8D5Q3R7V8M",
+      "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAGX9rI+FshTLGq8g4+s1ep4m+DHaykgM0A5v6iz02jWE=\n-----END PUBLIC KEY-----\n",
+      "published_at": "2026-04-01T00:00:00+00:00",
+      "status": "active"
+    },
+    {
+      "key_id": "key_01J8RETIRED0000000000000000",
+      "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAxoImN8fTEOxXYnvgC6JZ0lN0n0qvZERwz/vlOjX3MkI=\n-----END PUBLIC KEY-----\n",
+      "published_at": "2025-10-01T00:00:00+00:00",
+      "status": "retired"
+    }
+  ]
+}
