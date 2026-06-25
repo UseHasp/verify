@@ -61,7 +61,7 @@
             ],
             "additionalProperties": true,
             "properties": {
-              "checkpoint_after_entry": { "type": "number", "minimum": 1 },
+              "checkpoint_after_entry": { "type": "integer", "minimum": 1 },
               "tsa_url": { "type": "string", "format": "uri", "pattern": "^https://" },
               "tsa_cacert_url": { "type": "string", "format": "uri", "pattern": "^https://" },
               "tsa_tsr_base64": { "type": "string", "minLength": 1 },
