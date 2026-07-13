@@ -15,7 +15,7 @@ const load = (p) => JSON.parse(readFileSync(resolve(here, p), "utf8"));
 
 const SCHEMA = load("../schema/v1.0.json");
 const VALID = load("fixtures/valid.json");
-const BROKEN_SCHEMA = load("fixtures/broken-schema.json");
+const clone = () => JSON.parse(JSON.stringify(VALID));
 
 const ajv = new Ajv({ strict: false, allErrors: true });
 addFormats(ajv);
@@ -28,8 +28,30 @@ describe("published JSON Schema schema/v1.0.json", () => {
     expect(ok).toBe(true);
   });
 
-  it("rejects the broken-schema fixture (mismatched schema_version)", () => {
-    expect(validate(BROKEN_SCHEMA)).toBe(false);
+  it("accepts null nullable columns (genesis prev_hash, null actor)", () => {
+    const d = clone();
+    d.entries[0].prev_hash = null;
+    d.entries[0].user_id = null;
+    d.entries[0].subject_type = null;
+    expect(validate(d)).toBe(true);
+  });
+
+  it("rejects a mismatched schema_version", () => {
+    const d = clone();
+    d.schema_version = "99.0";
+    expect(validate(d)).toBe(false);
+  });
+
+  it("rejects a non-hex anchored_data", () => {
+    const d = clone();
+    d.verification.tsa_anchor_chain[0].anchored_data = "chain_head_hash";
+    expect(validate(d)).toBe(false);
+  });
+
+  it("rejects an entry missing a required flat field", () => {
+    const d = clone();
+    delete d.entries[0].subject_id_hmac;
+    expect(validate(d)).toBe(false);
   });
 
   it("declares $id and draft 2020-12 $schema", () => {

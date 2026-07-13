@@ -25,7 +25,7 @@
           }
         },
         "exported_at": { "type": "string" },
-        "exported_by": { "type": "string" },
+        "exported_by": { "type": ["string", "null"] },
         "entry_count": { "type": "number" }
       }
     },
@@ -63,8 +63,8 @@
               "checkpoint_after_entry": { "type": "number" },
               "tsa_url": { "type": "string", "format": "uri", "pattern": "^https://" },
               "tsa_cacert_url": { "type": "string", "format": "uri", "pattern": "^https://" },
-              "tsa_tsr_base64": { "type": "string" },
-              "anchored_data": { "const": "chain_head_hash" }
+              "tsa_tsr_base64": { "type": "string", "minLength": 1 },
+              "anchored_data": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
             }
           }
         }
@@ -75,23 +75,37 @@
       "items": {
         "type": "object",
         "required": [
-          "seq",
-          "timestamp",
-          "actor",
+          "user_id",
+          "org_id",
+          "project_id",
           "action",
-          "resource",
+          "entity_type",
+          "entity_id",
+          "metadata",
+          "ip_address",
+          "created_at",
+          "phi_disposition",
+          "subject_type",
+          "subject_id_hmac",
           "prev_hash",
           "hash",
           "signature"
         ],
         "additionalProperties": true,
         "properties": {
-          "seq": { "type": "number", "minimum": 1 },
-          "timestamp": { "type": "string" },
-          "actor": { "type": "object" },
+          "user_id": { "type": ["string", "null"] },
+          "org_id": { "type": "string" },
+          "project_id": { "type": ["string", "null"] },
           "action": { "type": "string" },
-          "resource": { "type": "object" },
-          "prev_hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "entity_type": { "type": ["string", "null"] },
+          "entity_id": { "type": ["string", "null"] },
+          "metadata": { "type": ["object", "null"] },
+          "ip_address": { "type": ["string", "null"] },
+          "created_at": { "type": "string" },
+          "phi_disposition": { "type": ["string", "null"] },
+          "subject_type": { "type": ["string", "null"] },
+          "subject_id_hmac": { "type": ["string", "null"] },
+          "prev_hash": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" },
           "hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
           "signature": { "type": "string", "pattern": "^ed25519:" }
         }

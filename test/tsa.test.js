@@ -1,20 +1,18 @@
 /**
  * Unit tests for checkTsa using an injected mock fetcher.
  *
- * The TSA CA certificate is bundled at test/fixtures/tsa-cacert.pem so
- * tests are fully offline. openssl must be on PATH (skipped if not).
+ * The TSA CA certificate is bundled at test/fixtures/tsa-cacert.pem so tests
+ * are fully offline. openssl must be on PATH (skipped if not).
  */
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import { beforeAll, describe, expect, it } from "vitest";
 import { checkTsa } from "../src/checks/tsa.js";
+import { CA_FILE, fixture, loadFixture } from "./helpers.js";
 
-const here = dirname(fileURLToPath(import.meta.url));
-const VALID = JSON.parse(readFileSync(resolve(here, "fixtures", "valid.json"), "utf8"));
-const BROKEN_TSA = JSON.parse(readFileSync(resolve(here, "fixtures", "broken-tsa.json"), "utf8"));
-const CACERT = readFileSync(resolve(here, "fixtures", "tsa-cacert.pem"));
+const VALID = loadFixture("valid.json");
+const BROKEN_TSA = loadFixture("broken-tsa.json");
+const CACERT = readFileSync(CA_FILE);
 
 let hasOpenssl = false;
 beforeAll(() => {
@@ -41,6 +39,7 @@ describe("checkTsa", () => {
     expect(r.ok).toBe(true);
     expect(r.anchors).toHaveLength(1);
     expect(r.anchors[0].output).toMatch(/Verification:\s*OK/);
+    expect(r.anchors[0].anchored_data).toBe(VALID.verification.tsa_anchor_chain[0].anchored_data);
   });
 
   it("fails when TSR is tampered", async () => {
@@ -50,10 +49,10 @@ describe("checkTsa", () => {
     expect(r.error).toMatch(/openssl ts -verify failed/);
   });
 
-  it("fails when chain head doesn't match TSR-signed data", async () => {
+  it("fails when anchored_data doesn't match the TSR-signed data", async () => {
     if (!hasOpenssl) return;
     const d = JSON.parse(JSON.stringify(VALID));
-    d.verification.chain_head_hash = "0".repeat(64);
+    d.verification.tsa_anchor_chain[0].anchored_data = "0".repeat(64);
     const r = await checkTsa(d, { fetcher: mockFetcher(CACERT) });
     expect(r.ok).toBe(false);
     expect(r.error).toMatch(/openssl ts -verify failed/);
@@ -105,12 +104,21 @@ describe("checkTsa", () => {
       calls++;
       throw new Error("fetcher should not be called when caFile is set");
     };
-    const r = await checkTsa(VALID, {
-      fetcher,
-      caFile: resolve(here, "fixtures", "tsa-cacert.pem"),
-    });
+    const r = await checkTsa(VALID, { fetcher, caFile: CA_FILE });
     expect(r.ok).toBe(true);
     expect(calls).toBe(0);
+  });
+
+  it("rejects an oversized --ca-file", async () => {
+    const { mkdtempSync, writeFileSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const dir = mkdtempSync(join(tmpdir(), "hasp-cafile-"));
+    const big = join(dir, "big.pem");
+    writeFileSync(big, Buffer.alloc(1024 * 1024 + 1, 0x41));
+    const r = await checkTsa(VALID, { caFile: big });
+    expect(r.ok).toBe(false);
+    expect(r.error).toMatch(/exceeds .*byte cap/);
   });
 
   it("with --ca-file pointing at a missing path returns a clear error", async () => {
@@ -134,5 +142,15 @@ describe("checkTsa", () => {
     await checkTsa(VALID, { fetcher });
     expect(receivedSignal).not.toBeNull();
     expect(typeof receivedSignal.aborted).toBe("boolean");
+  });
+
+  it("verifies each anchor against its own anchored_data", async () => {
+    if (!hasOpenssl) return;
+    // Two anchors, same real TSR + anchored_data — both must verify.
+    const d = JSON.parse(JSON.stringify(VALID));
+    d.verification.tsa_anchor_chain.push({ ...d.verification.tsa_anchor_chain[0] });
+    const r = await checkTsa(d, { caFile: fixture("tsa-cacert.pem") });
+    expect(r.ok).toBe(true);
+    expect(r.anchors).toHaveLength(2);
   });
 });

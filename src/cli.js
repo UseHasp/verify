@@ -23,6 +23,10 @@ Options:
   --json           Emit machine-readable JSON instead of a human report.
   --skip-tsa       Skip the RFC 3161 TSA anchor check (offline mode).
   --ca-file <p>    Read TSA CA cert from local PEM file (no network).
+  --key-file <p>   Read the independently-published signing key from a local PEM
+                   file instead of fetching /trust/keys (offline trust root).
+  --keys-url <u>   Base URL for the /trust/keys/{tenant_id} endpoint
+                   (default https://app.usehasp.com).
   --verbose        Print extra detail.
   -h, --help       Show this help.
   -v, --version    Show version.
@@ -70,6 +74,8 @@ async function main(argv) {
     result = await verifyExport(data, {
       skipTsa: args.skipTsa,
       caFile: args.caFile ?? undefined,
+      keyFile: args.keyFile ?? undefined,
+      keysBaseUrl: args.keysUrl ?? undefined,
     });
   } catch (err) {
     process.stderr.write(`error: ${errMessage(err)}\n`);
@@ -86,12 +92,14 @@ async function main(argv) {
 
 /** @param {string[]} argv */
 function parseArgs(argv) {
-  /** @type {{file: string | null, json: boolean, skipTsa: boolean, caFile: string | null, verbose: boolean, help: boolean, version: boolean}} */
+  /** @type {{file: string | null, json: boolean, skipTsa: boolean, caFile: string | null, keyFile: string | null, keysUrl: string | null, verbose: boolean, help: boolean, version: boolean}} */
   const out = {
     file: null,
     json: false,
     skipTsa: false,
     caFile: null,
+    keyFile: null,
+    keysUrl: null,
     verbose: false,
     help: false,
     version: false,
@@ -113,6 +121,26 @@ function parseArgs(argv) {
       i++;
     } else if (a.startsWith("--ca-file=")) {
       out.caFile = a.slice("--ca-file=".length);
+    } else if (a === "--key-file") {
+      const next = argv[i + 1];
+      if (!next || next.startsWith("-")) {
+        process.stderr.write(`error: --key-file requires a path argument\n`);
+        process.exit(2);
+      }
+      out.keyFile = next;
+      i++;
+    } else if (a.startsWith("--key-file=")) {
+      out.keyFile = a.slice("--key-file=".length);
+    } else if (a === "--keys-url") {
+      const next = argv[i + 1];
+      if (!next || next.startsWith("-")) {
+        process.stderr.write(`error: --keys-url requires a URL argument\n`);
+        process.exit(2);
+      }
+      out.keysUrl = next;
+      i++;
+    } else if (a.startsWith("--keys-url=")) {
+      out.keysUrl = a.slice("--keys-url=".length);
     } else if (a === "-") {
       if (out.file) {
         process.stderr.write(`error: unexpected positional argument -\n`);
@@ -141,15 +169,19 @@ function printHuman(result, verbose, data) {
   const c = result.checks;
   line(c.schema, "schema valid");
   line(c.chain, (ok) => `chain intact (${ok.count} / ${ok.count} entries)`);
+  line(
+    c.publishedKey,
+    (ok) => `published key matched (key_id ${ok.key_id}\n  — trust root: ${ok.source})`,
+  );
   line(c.signatures, (ok) => `signatures verified (${ok.count} / ${ok.count})`);
   if ("skipped" in c.tsa && c.tsa.skipped) {
     process.stdout.write("⚠ TSA anchor check skipped (--skip-tsa)\n");
   } else {
     line(c.tsa, (ok) => {
       const lines = [`TSA anchor valid`];
-      const anchors = /** @type {Array<{tsa_url: string}>} */ (ok.anchors);
+      const anchors = /** @type {Array<{tsa_url: string, anchored_data: string}>} */ (ok.anchors);
       for (const a of anchors) {
-        lines.push(`  — ${a.tsa_url}`);
+        lines.push(`  — ${a.tsa_url} (anchored ${a.anchored_data})`);
       }
       return lines.join("\n");
     });
@@ -160,7 +192,7 @@ function printHuman(result, verbose, data) {
 
   if (verbose) {
     if (result.ok) {
-      printSuccessDetail(data);
+      printSuccessDetail(data, result);
     } else {
       process.stdout.write("\nDetail:\n");
       process.stdout.write(`${JSON.stringify(result.checks, null, 2)}\n`);
@@ -168,26 +200,34 @@ function printHuman(result, verbose, data) {
   }
 }
 
-/** @param {any} data parsed export */
-function printSuccessDetail(data) {
+/**
+ * @param {any} data parsed export
+ * @param {import("./verify.js").VerifyResult} result verified result (for key source)
+ */
+function printSuccessDetail(data, result) {
   if (!data || typeof data !== "object") return;
   const e = data.export ?? {};
   const v = data.verification ?? {};
   const entries = Array.isArray(data.entries) ? data.entries : [];
   const anchors = Array.isArray(v.tsa_anchor_chain) ? v.tsa_anchor_chain : [];
-  const seqFirst = entries[0]?.seq ?? "?";
-  const seqLast = entries[entries.length - 1]?.seq ?? "?";
   const range = e.range ? `${e.range.from} → ${e.range.to}` : "(unspecified)";
+  const firstCreated = entries[0]?.created_at ?? "?";
+  const lastCreated = entries[entries.length - 1]?.created_at ?? "?";
+  const pk = result.checks.publishedKey;
+  const keySource = pk?.ran && pk.ok ? /** @type {any} */ (pk).source : "(unknown)";
 
   process.stdout.write("\nDetail:\n");
   process.stdout.write(`  schema_version: ${data.schema_version ?? "(unknown)"}\n`);
+  process.stdout.write(`  tenant:         ${e.tenant ?? "(unknown)"}\n`);
   process.stdout.write(`  tenant_id:      ${e.tenant_id ?? "(unknown)"}\n`);
   process.stdout.write(`  range:          ${range}\n`);
-  process.stdout.write(`  entries:        ${entries.length} (seq ${seqFirst} → ${seqLast})\n`);
+  process.stdout.write(`  exported_by:    ${e.exported_by ?? "(none)"}\n`);
+  process.stdout.write(`  entries:        ${entries.length} (${firstCreated} → ${lastCreated})\n`);
   process.stdout.write(`  key_id:         ${v.key_id ?? "(unknown)"}\n`);
+  process.stdout.write(`  trust root:     ${keySource}\n`);
   process.stdout.write(`  anchors:        ${anchors.length}\n`);
   for (const a of anchors) {
-    process.stdout.write(`    — ${a.tsa_url}\n`);
+    process.stdout.write(`    — ${a.tsa_url} (anchored_data ${a.anchored_data})\n`);
   }
 }
 

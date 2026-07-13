@@ -1,42 +1,95 @@
 /**
- * Canonical JSON serialization for hashing and signing.
+ * Canonical serialization for the audit-log integrity hash.
  *
- * Matches the generator at
- * apps/marketing/scripts/generate-audit-sample.js in usehasp/hasp-monorepo:
+ * The platform computes each entry's `hash` in
+ * `AuditLog::computeHashFromAttributes()` (apps/platform, monorepo) as:
  *
- *   JSON.stringify(obj, (key, value) => {
- *     if (value && typeof value === "object" && !Array.isArray(value)) {
- *       return Object.keys(value).sort().reduce((a, k) => (a[k] = value[k], a), {});
- *     }
- *     return value;
- *   })
+ *   sha256_hex(json_encode([
+ *     user_id, org_id, project_id, action, entity_type, entity_id,
+ *     metadata, ip_address, created_at, phi_disposition,
+ *     subject_type, subject_id_hmac,
+ *   ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE))
  *
- * Behaviour: object keys sorted lexicographically at every level;
- * arrays kept in order; no whitespace (default JSON.stringify spacing = 0).
+ * Two properties matter for byte-parity with PHP:
  *
- * Implementation note: the reviver accumulator uses Object.create(null) so a
- * malicious export containing a literal `__proto__` key cannot pollute
- * Object.prototype during canonicalization. JSON.stringify still emits the
- * key as `"__proto__"`, preserving byte-for-byte equivalence with the
- * generator output.
+ *  1. The payload is a fixed-order JSON *array* of exactly twelve fields.
+ *     The field order is significant and is NOT sorted — only `metadata` is
+ *     canonicalized. `prev_hash` is deliberately NOT part of the hash.
+ *  2. Only `metadata` is canonicalized (recursive key-sort of objects; arrays
+ *     keep their order), so a JSONB key-order round-trip on the platform does
+ *     not change the digest (AUDIT-C4).
  *
- * @param {unknown} obj
+ * JS `JSON.stringify` already matches `JSON_UNESCAPED_SLASHES` (it never
+ * escapes `/`) and `JSON_UNESCAPED_UNICODE` (it emits non-ASCII as UTF-8, not
+ * `\uXXXX`), and emits no insignificant whitespace — so the byte output is
+ * identical to PHP's for the value types that appear here (string, number,
+ * boolean, null, and nested objects/arrays). See the parity test in
+ * test/unit.test.js.
+ */
+
+/**
+ * The twelve hashed fields, in the exact order the platform serializes them.
+ * @type {readonly string[]}
+ */
+export const HASH_FIELD_ORDER = Object.freeze([
+  "user_id",
+  "org_id",
+  "project_id",
+  "action",
+  "entity_type",
+  "entity_id",
+  "metadata",
+  "ip_address",
+  "created_at",
+  "phi_disposition",
+  "subject_type",
+  "subject_id_hmac",
+]);
+
+/**
+ * Prototype-pollution-safe recursive key-sort. Scoped to `metadata` only.
+ *
+ * Objects have their keys sorted lexicographically at every depth; arrays keep
+ * their element order (their contents are still canonicalized). The accumulator
+ * uses `Object.create(null)` so a malicious export carrying a literal
+ * `__proto__` key cannot pollute `Object.prototype`. `JSON.stringify` still
+ * emits the key as `"__proto__"`, preserving byte-for-byte equivalence with the
+ * platform output.
+ *
+ * @param {unknown} value
+ * @returns {unknown}
+ */
+export function canonicalizeMetadata(value) {
+  if (Array.isArray(value)) {
+    return value.map(canonicalizeMetadata);
+  }
+  if (value && typeof value === "object") {
+    /** @type {Record<string, unknown>} */
+    const out = Object.create(null);
+    for (const k of Object.keys(value).sort()) {
+      out[k] = canonicalizeMetadata(/** @type {Record<string, unknown>} */ (value)[k]);
+    }
+    return out;
+  }
+  return value;
+}
+
+/**
+ * Build the canonical hash payload for one entry: the fixed-order twelve-field
+ * array with `metadata` canonicalized, serialized with no whitespace. This is
+ * the exact byte string the platform passes to SHA-256.
+ *
+ * Fields absent on the entry serialize as JSON `null`, matching the platform's
+ * `$attributes[...] ?? null` behaviour.
+ *
+ * @param {Record<string, unknown>} entry
  * @returns {string}
  */
-export function canonicalSorted(obj) {
-  return JSON.stringify(obj, (_key, value) => {
-    if (value && typeof value === "object" && !Array.isArray(value)) {
-      return Object.keys(value)
-        .sort()
-        .reduce(
-          /** @param {Record<string, unknown>} acc */
-          (acc, k) => {
-            acc[k] = value[k];
-            return acc;
-          },
-          /** @type {Record<string, unknown>} */ (Object.create(null)),
-        );
-    }
-    return value;
+export function canonicalEntryPayload(entry) {
+  const arr = HASH_FIELD_ORDER.map((k) => {
+    if (k === "metadata") return canonicalizeMetadata(entry.metadata ?? null);
+    const v = entry[k];
+    return v === undefined ? null : v;
   });
+  return JSON.stringify(arr);
 }

@@ -39,9 +39,19 @@ The HTML coverage report is uploaded as a GitHub Actions artifact on every CI ru
 
 ## Fixtures
 
-`test/fixtures/valid.json` is the canonical sample export. The four `broken-*.json` fixtures are generated from it by `test/fixtures/build-broken.js`. If `valid.json` changes, re-run that script and commit the regenerated broken fixtures.
+All fixtures are produced by a single generator, `test/fixtures/generate.js`, from a pinned keypair and the real freetsa RFC 3161 anchor bundled in the repo. Run it after any contract change:
 
-`valid.json` itself is kept in sync with the live sample at <https://usehasp.com/trust/audit-export-sample.json>. Run the CLI against the live sample before each release to catch generator/verifier drift.
+```bash
+node test/fixtures/generate.js
+```
+
+It writes:
+
+- `valid.json` — the canonical schema-1.0 golden export (real per-entry Ed25519 signatures over each `hash` hex, a real `prev_hash` chain rooted at genesis `null`, and the real freetsa TSR).
+- `trust-keys.json` / `published-key.pem` — the tenant's independently-published key (the trust root), as the `/trust/keys` response and as a bare PEM for `--key-file`.
+- `broken-hash.json`, `broken-chain.json`, `broken-signature.json`, `forged-chain.json`, `broken-tsa.json` — the negative fixtures, each failing exactly one check (`forged-chain.json` is the whole-chain forgery that must fail the published-key match).
+
+`valid.json` is meant to mirror the live sample the platform publishes at <https://usehasp.com/trust/audit-export-sample.json>; the two must be regenerated from the same real export (tracked cross-repo under HASP-197).
 
 ## Release workflow
 

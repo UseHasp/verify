@@ -13,7 +13,7 @@
   },
   "verification": {
     "algo": "ed25519",
-    "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAad/8yq23MMLSNVcn/vBYfkcN8HzvTeZrAJODh5046JA=\n-----END PUBLIC KEY-----\n",
+    "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAGN5K/b/2Xpp840DyokRNJv3i7zJX1PfNnGNknWjxgZI=\n-----END PUBLIC KEY-----\n",
     "key_id": "key_01HV0F3JBA7Z2N8D5Q3R7V8M1C",
     "key_published_at": "2026-04-01T00:00:00+00:00",
     "chain_head_hash": "edf0824958701ceeb20d5e27826bf36fd2695f4452d280952b67dd62367b3f7d",
@@ -58,7 +58,7 @@
       "subject_id_hmac": "3d2b1f0e9c8a7b6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d",
       "prev_hash": null,
       "hash": "ed97e3790395c2a521e3e103ba011880eff612daba595f4da1474f0f44da0088",
-      "signature": "ed25519:kJKkKuSZMfp9e99m3p1zkfMkLuoZuao4fFz4zeONLiYT34b5DUJW5b+1se2GaZmtL0AcorzxyQNBQtRY8Tx5AQ=="
+      "signature": "ed25519:TDk/uUIHszRaFZ+7ZIIFR8nD1TcmzLvaZL0cNt8e6ECrjOuXBOsWsySxLZx6413eeBPVSIHlmkNjBO93OK9FAg=="
     },
     {
       "user_id": "user_01HV9WY1FQ3K8M5N2T7P0R4S6X",
@@ -79,7 +79,7 @@
       "subject_id_hmac": "3d2b1f0e9c8a7b6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d",
       "prev_hash": "ed97e3790395c2a521e3e103ba011880eff612daba595f4da1474f0f44da0088",
       "hash": "a1213eb1acac406c34261b47e88bd7113b5649796082a7beb206956dba026274",
-      "signature": "ed25519:zPE25uAd4jGXQRuduvzBJiU6xk5Wb6AVj9zyv5/Z2cidoVSJ6sspvgS49UTaZew3g8v4HAGXIIK2GYEYeMLwDg=="
+      "signature": "ed25519:Mf92A8NyIKCGPI9YNHVvDQ76A/2h2tqhC303YSnsq/iBKU3fzbHrAE9fyoxxwWZUHAVcYFUcAWJc/6Tf72lGBg=="
     },
     {
       "user_id": null,
@@ -99,7 +99,7 @@
       "subject_id_hmac": null,
       "prev_hash": "a1213eb1acac406c34261b47e88bd7113b5649796082a7beb206956dba026274",
       "hash": "82df869ac7415c5dbab96bf954c24c1398f2908b5e5867ba5fcc88b88af9f371",
-      "signature": "ed25519:NA/uWWWNkCdgaitrPayBIF5xXqougRffgUM02ll1l+buEZLtR5Xr/FryO7M8rNidyje7m0LSHQ3o8EFgaytDDQ=="
+      "signature": "ed25519:sraXbJm+q/nJPhms2GTReLqV5lSHiPQRJu2KJJ3VBMKLpURkVLF1pQX38alcVKgbe9TemqSBQRcSyYVhkgv8Cg=="
     },
     {
       "user_id": "user_01HV9X1B3C4D5E6F7G8H9J0K1L",
@@ -119,7 +119,7 @@
       "subject_id_hmac": null,
       "prev_hash": "82df869ac7415c5dbab96bf954c24c1398f2908b5e5867ba5fcc88b88af9f371",
       "hash": "edf0824958701ceeb20d5e27826bf36fd2695f4452d280952b67dd62367b3f7d",
-      "signature": "ed25519:lw7i0g0oklAs6FSn75jbXyIj1ewPmrAvD7nC7HHSR9qjtvDXKCQIu1JiRGadwsWI50m0w0UjFObSr056ZY13Ag=="
+      "signature": "ed25519:AAfQfcDtnnRj4XyzDnZLGKAgqByv0dFQL4xvl0rX9c27Xbf4Oj5R2AZuuXHLT9e8JSVkJT2pQL9r5l4ad9tdAw=="
     }
   ]
 }

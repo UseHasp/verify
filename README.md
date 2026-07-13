@@ -20,9 +20,9 @@
 
 **For auditors, compliance reviewers, and customers who want to verify Hasp audit exports for themselves.**
 
-Hasp signs every audit-log entry with an Ed25519 key and chains them with SHA-256, then anchors the chain head with an RFC 3161 timestamp from an independent TSA. This tool re-runs those four checks on an export so you don't have to trust Hasp's word for it. The same checks can be run by hand from the [manual recipe](https://usehasp.com/trust/verify) — this tool is a convenience, not a trust anchor.
+Hasp signs every audit-log entry with an Ed25519 key and chains them with SHA-256, then anchors the chain with an RFC 3161 timestamp from an independent TSA. This tool re-runs those checks on an export — and, crucially, verifies the signing key against the tenant's **independently-published key**, not the key embedded in the export — so you don't have to trust Hasp's word for it. The same checks can be run by hand from the [manual recipe](https://usehasp.com/trust/verify) — this tool is a convenience, not a trust anchor.
 
-- **Offline.** No service calls. One optional network fetch (TSA CA cert) you can disable or replace with a local file.
+- **Offline-capable.** No telemetry. Two network fetches — the tenant's published key and the TSA CA cert — each replaceable with a local file (`--key-file`, `--ca-file`) for fully air-gapped verification.
 - **Auditable.** Under 400 LOC of plain JS over Node `crypto` + `openssl ts`. Read it in one sitting.
 - **Reproducible.** npm provenance + Sigstore attestation on every release. Same input → same verdict, forever.
 
@@ -57,9 +57,11 @@ Expected output:
 ```
 ✓ schema valid
 ✓ chain intact (4 / 4 entries)
+✓ published key matched (key_id key_01HV0F3JBA7Z2N8D5Q3R7V8M1C
+  — trust root: https://app.usehasp.com/trust/keys/org_01HV9WX3PQ8CK6N5Z2T4M7Y0HD)
 ✓ signatures verified (4 / 4)
 ✓ TSA anchor valid
-  — https://freetsa.org/tsr
+  — https://freetsa.org/tsr (anchored 719bbcca…081382771)
 
 VERIFIED.
 ```
@@ -68,12 +70,12 @@ If any check fails, the tool exits non-zero and prints which one and why. For ex
 
 ```
 ✓ schema valid
-✗ chain broken at seq=2: computed <a>, declared <b>
+✗ chain broken at entry[1]: computed <a>, declared <b>
 
 FAILED.
 ```
 
-Exit code is `1`. The failing check is named with the entry seq; checks that passed are still shown so you can see how far verification got.
+Exit code is `1`. The failing check is named with the entry index; checks that passed are still shown so you can see how far verification got.
 
 This tool is a convenience layer over the manual recipe published at the [Hasp Trust Center](https://usehasp.com/trust/verify). If the tool ever disagrees with the manual recipe, the manual recipe wins — open an issue.
 
@@ -121,6 +123,10 @@ Options:
   --json           Emit machine-readable JSON instead of a human report.
   --skip-tsa       Skip the RFC 3161 TSA anchor check (offline mode).
   --ca-file <p>    Read TSA CA cert from a local PEM file (no network).
+  --key-file <p>   Read the independently-published signing key from a local PEM
+                   file instead of fetching /trust/keys (offline trust root).
+  --keys-url <u>   Base URL for the /trust/keys/{tenant_id} endpoint
+                   (default https://app.usehasp.com).
   --verbose        Print extra detail (success: summary; failure: full check JSON).
   -h, --help       Show help.
   -v, --version    Show version.
@@ -150,16 +156,18 @@ Exit codes:
 
 Algorithms are pinned: **Ed25519** for signatures, **SHA-256** for the chain, **RFC 3161** for the timestamp anchor. The tool rejects exports that declare anything else.
 
-Four checks, in this order. Any failure stops the run and reports the failing check.
+Five checks, in this order. Any failure stops the run and reports the failing check.
 
-1. **Schema** — `schema_version` is `1.0`, all required fields present, `entries[*].seq` is 1-indexed and contiguous, `chain_head_hash` is 64-hex, TSA URLs are `https:`.
+1. **Schema** — `schema_version` is `1.0`, all required fields present, entries carry the flat schema-1.0 columns, `chain_head_hash` and each `anchored_data` are 64-hex, TSA URLs are `https:`.
    → *proves the export has the shape downstream checks expect; malformed input fails loudly instead of being silently coerced.*
-2. **Hash chain** — for every entry, `sha256(prev_hash_hex || canonical_json(entry_without_hash_and_signature))` matches the declared `entry.hash`. The final entry's hash matches `verification.chain_head_hash`.
+2. **Hash chain** — for every entry, `sha256(canonical_hash_payload(entry))` matches the declared `entry.hash`, where the payload is the fixed twelve-field array (only `metadata` is key-sorted; `prev_hash` is **not** part of the hash). Each entry's `prev_hash` links to the previous entry's `hash`, and the final entry's hash matches `verification.chain_head_hash`.
    → *proves no entry was added, removed, or mutated after signing — any tampering breaks the chain.*
-3. **Signatures** — every entry's `ed25519:<base64>` signature verifies against `verification.public_key_pem` over the same canonical payload.
+3. **Published key** — resolve the tenant's key independently (`GET {keys-url}/trust/keys/{tenant_id}`, or `--key-file` offline), find the entry whose `key_id` matches `verification.key_id`, and require its key material to match the embedded `verification.public_key_pem`. Fails closed if the key is absent or mismatched.
+   → *proves the export is signed by the tenant's real, published key — a whole-chain forgery re-signed with an attacker's own key is rejected here, before any signature is trusted.*
+4. **Signatures** — every entry's `ed25519:<base64>` signature verifies against the **published** key (from step 3) over the entry's `hash` hex string.
    → *proves each entry was signed by the holder of the published key, not anyone else.*
-4. **TSA anchor** — for each anchor in `tsa_anchor_chain`: decode TSR, fetch CA cert from `tsa_cacert_url` (or read from `--ca-file`), run `openssl ts -verify -in <tsr> -CAfile <cacert> -data <chain_head_hash_ascii>`, require `Verification: OK`.
-   → *proves the chain head existed at the timestamped instant; an attacker who later compromises the signing key cannot retroactively forge older entries without also compromising the TSA.*
+5. **TSA anchor** — for each anchor in `tsa_anchor_chain`: decode TSR, fetch CA cert from `tsa_cacert_url` (or read from `--ca-file`), run `openssl ts -verify -in <tsr> -CAfile <cacert> -data <anchored_data_ascii>`, require `Verification: OK`.
+   → *proves the anchored hash existed at the timestamped instant; an attacker who later compromises the signing key cannot retroactively forge older entries without also compromising the TSA.*
 
 Field-by-field schema reference: [docs/SCHEMA.md](docs/SCHEMA.md). Machine-readable JSON Schema: [schema/v1.0.json](schema/v1.0.json).
 
@@ -223,7 +231,7 @@ Auditors already trust OpenSSL. Bundling our own TSR parser would mean asking au
 <details>
 <summary><strong>Can I run fully offline?</strong></summary>
 
-Yes. Pass `--skip-tsa` to skip the only network fetch (the TSA CA cert). The schema, chain, and signature checks all run locally with no network. The TSA anchor check is the only one that needs the cert — if you have the cert on disk, you can run `openssl ts -verify` manually against the embedded TSR.
+Yes. The tool makes two network fetches: the tenant's published key (`/trust/keys/{tenant_id}`) and the TSA CA cert. Supply both from disk — `--key-file <pem>` and `--ca-file <pem>` — and no network is touched. Or pass `--skip-tsa` to drop the TSA fetch entirely; the schema, chain, published-key, and signature checks still run (with `--key-file` for the key).
 </details>
 
 <details>
@@ -235,7 +243,7 @@ It doesn't, by design. The tool is a convenience layer over the same primitives 
 <details>
 <summary><strong>Does it phone home?</strong></summary>
 
-No. The tool touches the network for exactly one thing: fetching the TSA CA certificate at the URL embedded in the export. That fetch is capped at 15 s and 1 MB. Pass `--skip-tsa` to disable it entirely, or `--ca-file <path>` to read the cert from disk. No analytics, no error reporting, no update checks.
+No. The tool touches the network for two things only: fetching the tenant's published key (`/trust/keys/{tenant_id}`) and fetching the TSA CA certificate (URL embedded in the export). Both fetches are capped at 15 s and 1 MB. Supply `--key-file` and `--ca-file` (and/or `--skip-tsa`) to avoid the network entirely. No analytics, no error reporting, no update checks.
 </details>
 
 <details>

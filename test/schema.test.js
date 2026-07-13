@@ -4,14 +4,11 @@
  * Every fail branch should be exercised so coverage shows the failure paths
  * are not dead code. Each test mutates a deep clone of the valid fixture.
  */
-import { readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { checkSchema } from "../src/checks/schema.js";
+import { loadFixture } from "./helpers.js";
 
-const here = dirname(fileURLToPath(import.meta.url));
-const VALID = JSON.parse(readFileSync(resolve(here, "fixtures", "valid.json"), "utf8"));
+const VALID = loadFixture("valid.json");
 const clone = () => JSON.parse(JSON.stringify(VALID));
 
 function expectFail(data, pattern) {
@@ -52,6 +49,11 @@ describe("checkSchema — .export object", () => {
       expectFail(d, new RegExp(`\\.export\\.${key}`));
     });
   }
+  it(".export.tenant_id not a string", () => {
+    const d = clone();
+    d.export.tenant_id = 42;
+    expectFail(d, /tenant_id must be a string/);
+  });
   it(".export.entry_count not a number", () => {
     const d = clone();
     d.export.entry_count = "4";
@@ -74,6 +76,16 @@ describe("checkSchema — .export object", () => {
       expectFail(d, new RegExp(`\\.export\\.range\\.${k} must be an ISO8601 string`));
     });
   }
+  it(".export.exported_by null is allowed", () => {
+    const d = clone();
+    d.export.exported_by = null;
+    expect(checkSchema(d)).toEqual({ ok: true });
+  });
+  it(".export.exported_by non-string non-null rejected", () => {
+    const d = clone();
+    d.export.exported_by = 42;
+    expectFail(d, /exported_by must be a string or null/);
+  });
 });
 
 describe("checkSchema — .verification object", () => {
@@ -105,6 +117,16 @@ describe("checkSchema — .verification object", () => {
       expectFail(d, new RegExp(`\\.verification\\.${key}`));
     });
   }
+  it("public_key_pem not a string", () => {
+    const d = clone();
+    d.verification.public_key_pem = 42;
+    expectFail(d, /public_key_pem must be a string/);
+  });
+  it("key_id not a string", () => {
+    const d = clone();
+    d.verification.key_id = 42;
+    expectFail(d, /key_id must be a string/);
+  });
   it("chain_head_hash not 64 hex", () => {
     const d = clone();
     d.verification.chain_head_hash = "abc";
@@ -155,14 +177,42 @@ describe("checkSchema — .verification object", () => {
       expectFail(d, /must be a string URL/);
     });
   }
-  it("tsa anchor anchored_data wrong literal rejected", () => {
+  it("tsa anchor tsa_tsr_base64 empty rejected", () => {
     const d = clone();
-    d.verification.tsa_anchor_chain[0].anchored_data = "something_else";
-    expectFail(d, /anchored_data must be "chain_head_hash"/);
+    d.verification.tsa_anchor_chain[0].tsa_tsr_base64 = "";
+    expectFail(d, /tsa_tsr_base64 must be a non-empty string/);
+  });
+  it("tsa anchor anchored_data non-hex literal rejected", () => {
+    const d = clone();
+    d.verification.tsa_anchor_chain[0].anchored_data = "chain_head_hash";
+    expectFail(d, /anchored_data must be 64 hex/);
+  });
+  it("tsa anchor anchored_data wrong length rejected", () => {
+    const d = clone();
+    d.verification.tsa_anchor_chain[0].anchored_data = "abcd";
+    expectFail(d, /anchored_data must be 64 hex/);
   });
 });
 
 describe("checkSchema — .entries", () => {
+  const ENTRY_FIELDS = [
+    "user_id",
+    "org_id",
+    "project_id",
+    "action",
+    "entity_type",
+    "entity_id",
+    "metadata",
+    "ip_address",
+    "created_at",
+    "phi_disposition",
+    "subject_type",
+    "subject_id_hmac",
+    "prev_hash",
+    "hash",
+    "signature",
+  ];
+
   it("missing entries", () => {
     const d = clone();
     delete d.entries;
@@ -184,26 +234,60 @@ describe("checkSchema — .entries", () => {
     d.export.entry_count = d.entries.length;
     expectFail(d, /entry\[0\] not an object/);
   });
-  for (const key of [
-    "seq",
-    "timestamp",
-    "actor",
-    "action",
-    "resource",
-    "prev_hash",
-    "hash",
-    "signature",
-  ]) {
+  for (const key of ENTRY_FIELDS) {
     it(`entry missing .${key}`, () => {
       const d = clone();
       delete d.entries[0][key];
       expectFail(d, new RegExp(`entry\\[0\\] missing \\.${key}`));
     });
   }
-  it("entry seq not 1-indexed", () => {
+  for (const key of [
+    "user_id",
+    "project_id",
+    "entity_type",
+    "entity_id",
+    "ip_address",
+    "phi_disposition",
+    "subject_type",
+    "subject_id_hmac",
+  ]) {
+    it(`entry ${key} null is allowed by schema`, () => {
+      const d = clone();
+      d.entries[0][key] = null;
+      expect(checkSchema(d)).toEqual({ ok: true });
+    });
+    it(`entry ${key} non-string non-null rejected`, () => {
+      const d = clone();
+      d.entries[0][key] = 42;
+      expectFail(d, new RegExp(`entry\\[0\\]\\.${key} must be a string or null`));
+    });
+  }
+  for (const key of ["org_id", "action", "created_at"]) {
+    it(`entry ${key} non-string rejected`, () => {
+      const d = clone();
+      d.entries[0][key] = null;
+      expectFail(d, new RegExp(`entry\\[0\\]\\.${key} must be a string`));
+    });
+  }
+  it("entry metadata as array rejected", () => {
     const d = clone();
-    d.entries[0].seq = 5;
-    expectFail(d, /seq must be 1/);
+    d.entries[0].metadata = [];
+    expectFail(d, /metadata must be an object or null/);
+  });
+  it("entry metadata null allowed by schema", () => {
+    const d = clone();
+    d.entries[0].metadata = null;
+    expect(checkSchema(d)).toEqual({ ok: true });
+  });
+  it("entry prev_hash null allowed (genesis)", () => {
+    const d = clone();
+    d.entries[0].prev_hash = null;
+    expect(checkSchema(d)).toEqual({ ok: true });
+  });
+  it("entry prev_hash bad hex rejected", () => {
+    const d = clone();
+    d.entries[1].prev_hash = "xyz";
+    expectFail(d, /prev_hash must be 64 hex chars or null/);
   });
   it("entry signature not ed25519: prefix", () => {
     const d = clone();
@@ -225,16 +309,4 @@ describe("checkSchema — .entries", () => {
     d.entries[0].hash = 42;
     expectFail(d, /hash must be 64 hex/);
   });
-  for (const k of ["actor", "resource"]) {
-    it(`entry ${k} not an object rejected`, () => {
-      const d = clone();
-      d.entries[0][k] = "not an object";
-      expectFail(d, new RegExp(`entry\\[0\\]\\.${k} must be an object`));
-    });
-    it(`entry ${k} as array rejected`, () => {
-      const d = clone();
-      d.entries[0][k] = [];
-      expectFail(d, new RegExp(`entry\\[0\\]\\.${k} must be an object`));
-    });
-  }
 });

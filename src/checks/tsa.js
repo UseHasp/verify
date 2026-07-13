@@ -3,13 +3,15 @@
  *
  * For each anchor in tsa_anchor_chain:
  *  1. Decode the base64 TSR.
- *  2. Fetch the TSA CA certificate from `tsa_cacert_url`.
- *  3. Shell out to `openssl ts -verify -in tsr -CAfile cacert -data <chain_head_hash_ascii>`.
+ *  2. Fetch the TSA CA certificate from `tsa_cacert_url` (or read `--ca-file`).
+ *  3. Shell out to `openssl ts -verify -in tsr -CAfile cacert -data <anchored_data_ascii>`.
  *
  * Returns OK only if every anchor verifies. `--skip-tsa` bypasses this check.
  *
- * Note: the data file passed to openssl is the ASCII hex string of the chain
- * head (matches the generator, which writes `Buffer.from(chainHead, "utf8")`).
+ * The data passed to openssl is each anchor's own `anchored_data` — the actual
+ * hash the TSA covered — as its ASCII hex string (the platform anchors the hex
+ * string, `Buffer.from(anchor.anchored_data, "utf8")`), NOT the global
+ * chain_head_hash.
  */
 import { execFile } from "node:child_process";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -26,13 +28,12 @@ const MAX_CACERT_BYTES = 1024 * 1024; // 1 MB — a real CA cert is < 10 KB.
 /**
  * @param {{verification: {chain_head_hash: string, tsa_anchor_chain: any[]}}} data
  * @param {{fetcher?: typeof fetch, opensslPath?: string, caFile?: string}} [opts]
- * @returns {Promise<{ok: true, anchors: Array<{tsa_url: string, output: string}>} | {ok: false, error: string}>}
+ * @returns {Promise<{ok: true, anchors: Array<{tsa_url: string, anchored_data: string, output: string}>} | {ok: false, error: string}>}
  */
 export async function checkTsa(data, opts = {}) {
   const fetcher = opts.fetcher ?? fetch;
   const openssl = opts.opensslPath ?? "openssl";
   const caFile = opts.caFile;
-  const chainHead = data.verification.chain_head_hash;
 
   /** @type {Buffer | null} */
   let caFileBytes = null;
@@ -58,12 +59,13 @@ export async function checkTsa(data, opts = {}) {
   const tmp = await mkdtemp(resolve(tmpdir(), "hasp-verify-"));
   const results = [];
   try {
-    const dataPath = resolve(tmp, "chainhead.bin");
-    await writeFile(dataPath, Buffer.from(chainHead, "utf8"));
-
     for (const [i, anchor] of data.verification.tsa_anchor_chain.entries()) {
       const tsrPath = resolve(tmp, `anchor-${i}.tsr`);
       const caPath = resolve(tmp, `cacert-${i}.pem`);
+      // Each anchor is verified over its own anchored_data, as the hex-ASCII
+      // string the platform timestamped.
+      const dataPath = resolve(tmp, `anchored-${i}.bin`);
+      await writeFile(dataPath, Buffer.from(anchor.anchored_data, "utf8"));
       await writeFile(tsrPath, Buffer.from(anchor.tsa_tsr_base64, "base64"));
 
       if (caFileBytes) {
@@ -91,7 +93,7 @@ export async function checkTsa(data, opts = {}) {
         if (!/Verification:\s*OK/i.test(out)) {
           return { ok: false, error: `TSA anchor ${i} verification did not return OK: ${out}` };
         }
-        results.push({ tsa_url: anchor.tsa_url, output: out });
+        results.push({ tsa_url: anchor.tsa_url, anchored_data: anchor.anchored_data, output: out });
       } catch (err) {
         const e = /** @type {{stderr?: unknown, stdout?: unknown, message?: unknown}} */ (
           err ?? {}
@@ -112,10 +114,8 @@ export async function checkTsa(data, opts = {}) {
  * @returns {Promise<{ok: true, bytes: Buffer} | {ok: false, error: string}>}
  */
 async function fetchCacert(fetcher, url) {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT_MS);
   try {
-    const res = await fetcher(url, { signal: ctrl.signal });
+    const res = await fetcher(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
     if (!res.ok) {
       return { ok: false, error: `failed to fetch TSA CA cert from ${url}: HTTP ${res.status}` };
     }
@@ -129,8 +129,6 @@ async function fetchCacert(fetcher, url) {
     return { ok: true, bytes: buf };
   } catch (err) {
     return { ok: false, error: `failed to fetch TSA CA cert from ${url}: ${errMessage(err)}` };
-  } finally {
-    clearTimeout(timer);
   }
 }
 

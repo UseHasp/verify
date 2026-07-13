@@ -20,7 +20,7 @@ If the tool ever produces a different verdict than the manual recipe on the same
 - **Open source.** MIT, public on GitHub, no obfuscation.
 - **Small.** Under ~400 LOC of source — readable in one sitting by a reviewer.
 - **Standard primitives only.** Node `crypto` (SHA-256, Ed25519) and `openssl ts -verify`. No bundled crypto. No native deps.
-- **No telemetry.** The tool touches the network for exactly one thing: fetching the TSA CA cert (URL is visible in the export). The fetch is capped at 15 s and 1 MB. `--skip-tsa` disables it entirely.
+- **No telemetry.** The tool touches the network for two things only: fetching the tenant's published key (`/trust/keys/{tenant_id}`) and the TSA CA cert (URL visible in the export). Each fetch is capped at 15 s and 1 MB. `--key-file` and `--ca-file` (and/or `--skip-tsa`) make it fully offline.
 - **Reproducible.** Same input always produces the same output. No build step on the auditor's machine — the npm tarball contains the exact JS source.
 - **Source-only npm package.** No prebuilt binaries. The published tarball is the same JS files you see in `src/`, plus `README.md`, `LICENSE`, `SECURITY.md`, `CHANGELOG.md`, and this trust document.
 - **npm provenance + Sigstore attestation.** Every release links back to the exact GitHub commit and workflow run. Verify with `npm audit signatures` or `gh attestation verify`.
@@ -54,10 +54,11 @@ If the verdicts disagree, the manual recipe is authoritative. File an issue with
 
 | Threat | Mitigation |
 |--------|------------|
-| Forged entry inserted into export | Per-entry Ed25519 signature must verify against the published key. |
-| Entry mutated after signing | Hash chain breaks; `chain_head_hash` no longer matches. |
-| Entry deleted from middle of export | `seq` becomes non-contiguous (schema check) **and** chain breaks. |
-| Entire export forged (wrong signing key) | TSA anchor was signed against `chain_head_hash` at a known instant; attacker would need to reproduce the TSR retroactively. |
+| Forged entry inserted into export | Per-entry Ed25519 signature must verify against the tenant's independently-published key. |
+| Entry mutated after signing | Hash chain breaks; the recomputed `hash` no longer matches, and `chain_head_hash` no longer matches. |
+| Entry deleted from middle of export | `prev_hash` linkage breaks (the surviving neighbours no longer chain) **and** `chain_head_hash` mismatches. |
+| Entire export re-signed with an attacker's key | The embedded `public_key_pem` is checked against the tenant's independently-published key at `/trust/keys/{tenant_id}`; a substituted key fails the published-key match and verification stops before signatures are trusted. |
+| Attacker also swaps the published key | The published key lives on a source the attacker does not control; substitution is detectable against it. Only public keys are ever published. |
 | Malicious `tsa_cacert_url` in export | Schema enforces `https:`; fetch is capped at 15 s and 1 MB; `--skip-tsa` skips the fetch entirely. |
 | Compromised verifier on auditor's machine | Out of scope — re-run the manual recipe. |
 | Compromised npm tarball | Provenance + Sigstore attestation; verify with `npm audit signatures` or `gh attestation verify`. |

@@ -1,15 +1,12 @@
 /**
- * Negative tests for checkChain: prev_hash mismatch, hash mismatch,
- * chain head mismatch.
+ * Tests for checkChain: hash recompute, prev_hash linkage, genesis anchor,
+ * chain head.
  */
-import { readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { checkChain } from "../src/checks/chain.js";
+import { checkChain, GENESIS_PREV_HASH } from "../src/checks/chain.js";
+import { loadFixture } from "./helpers.js";
 
-const here = dirname(fileURLToPath(import.meta.url));
-const VALID = JSON.parse(readFileSync(resolve(here, "fixtures", "valid.json"), "utf8"));
+const VALID = loadFixture("valid.json");
 const clone = () => JSON.parse(JSON.stringify(VALID));
 
 describe("checkChain", () => {
@@ -19,9 +16,14 @@ describe("checkChain", () => {
     expect(r.count).toBe(VALID.entries.length);
   });
 
-  it("fails when entry.prev_hash is wrong", () => {
+  it("genesis prev_hash is null (not 64 zeros)", () => {
+    expect(GENESIS_PREV_HASH).toBe(null);
+    expect(VALID.entries[0].prev_hash).toBe(null);
+  });
+
+  it("fails when a mid-chain prev_hash linkage is broken", () => {
     const d = clone();
-    d.entries[1].prev_hash = "0".repeat(64);
+    d.entries[2].prev_hash = "0".repeat(64);
     const r = checkChain(d);
     expect(r.ok).toBe(false);
     expect(r.error).toMatch(/prev_hash mismatch/);
@@ -30,6 +32,14 @@ describe("checkChain", () => {
   it("fails when entry payload is mutated (hash no longer matches)", () => {
     const d = clone();
     d.entries[0].action = "tampered";
+    const r = checkChain(d);
+    expect(r.ok).toBe(false);
+    expect(r.error).toMatch(/chain broken/);
+  });
+
+  it("fails when a metadata value is mutated (canonicalized field is hashed)", () => {
+    const d = clone();
+    d.entries[0].metadata.model = "some-other-model";
     const r = checkChain(d);
     expect(r.ok).toBe(false);
     expect(r.error).toMatch(/chain broken/);
