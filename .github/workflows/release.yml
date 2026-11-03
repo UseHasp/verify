@@ -94,14 +94,15 @@ jobs:
       # Smoke-test the actual artifact that will ship: pack, install into a
       # throwaway dir, run the bin against a fixture. Catches regressions
       # like missing `files`, broken `bin`, or shebang issues that source-only
-      # tests miss.
+      # tests miss. The fixture's tenant is a throwaway with no live
+      # /trust/keys endpoint, so its published keys are passed from disk.
       - name: Smoke-test packed tarball
         run: |
           tarball=$(npm pack 2>/dev/null | tail -1)
           mkdir -p /tmp/smoke && cd /tmp/smoke && npm init -y >/dev/null
           npm install "$GITHUB_WORKSPACE/$tarball" >/dev/null
           ./node_modules/.bin/hasp-verify --version
-          ./node_modules/.bin/hasp-verify "$GITHUB_WORKSPACE/test/fixtures/valid.json" --skip-tsa
+          ./node_modules/.bin/hasp-verify "$GITHUB_WORKSPACE/test/fixtures/valid.json" --keys-file "$GITHUB_WORKSPACE/test/fixtures/published-keys.json" --skip-tsa
           rm "$GITHUB_WORKSPACE/$tarball"
 
       # Rehearsal only (workflow_dispatch with dry_run=true): show exactly what
