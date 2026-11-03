@@ -1,6 +1,6 @@
 # Audit export schema — `schema_version` `1.0`
 
-Field reference for what `@usehasp/verify` accepts. The authoritative source is the validator in [`src/checks/schema.js`](../src/checks/schema.js); a machine-readable JSON Schema document lives at [`../schema/v1.0.json`](../schema/v1.0.json). This page is a reader's overview. The envelope is produced by the platform's `App\Services\Audit\AuditExportEnvelopeBuilder`.
+Field reference for what `@usehasp/verify` accepts. The authoritative source is the validator in [`src/checks/schema.js`](../src/checks/schema.js); a machine-readable JSON Schema document lives at [`../schema/v1.0.json`](../schema/v1.0.json). This page is a reader's overview.
 
 Top-level shape:
 
@@ -20,17 +20,17 @@ Top-level shape:
 | `schema_version` | string   | Must be `"1.0"`. The tool refuses any other value and points at the matching tool version. |
 | `export`         | object   | Provenance metadata for the export operation. |
 | `verification`   | object   | Everything an auditor needs to verify the export cryptographically. |
-| `entries`        | array    | The signed audit-log entries themselves, in order. |
+| `entries`        | array    | The signed audit-log entries themselves, in `seq` order. |
 
 ## `export`
 
 | Field            | Type     | Notes |
 |------------------|----------|-------|
 | `tenant`         | string   | Human-readable tenant name. |
-| `tenant_id`      | string   | Opaque, stable tenant identifier. Used to resolve the published-keys URL. |
-| `range.from`     | string   | ISO 8601 timestamp — inclusive start of the export window. |
-| `range.to`       | string   | ISO 8601 timestamp — inclusive end of the export window. |
-| `exported_at`    | string   | ISO 8601 timestamp — when this export was generated. |
+| `tenant_id`      | string   | Opaque, stable tenant identifier. |
+| `range.from`     | string   | ISO 8601 UTC timestamp — inclusive start of the export window. |
+| `range.to`       | string   | ISO 8601 UTC timestamp — inclusive end of the export window. |
+| `exported_at`    | string   | ISO 8601 UTC timestamp — when this export was generated. |
 | `exported_by`    | string   | Actor that triggered the export (e.g. user id or service name). |
 | `entry_count`    | number   | Must equal `entries.length`. |
 
@@ -39,54 +39,68 @@ Top-level shape:
 | Field                  | Type     | Notes |
 |------------------------|----------|-------|
 | `algo`                 | string   | Must be `"ed25519"`. The tool rejects every other value. |
-| `key_id`               | string   | Stable identifier for the signing key. Matched against the published-keys document. |
-| `public_key_pem`       | string   | SPKI-encoded Ed25519 public key, PEM-armored. Confirmed to equal the published key for `key_id`. |
-| `keys_url`             | string   | *(optional)* `https:` URL of the published-keys document. If absent, it is derived as `https://app.usehasp.com/trust/keys/{tenant_id}`. |
-| `key_published_at`     | string   | ISO 8601 timestamp — when this signing key was first published. |
+| `public_key_pem`       | string   | SPKI-encoded Ed25519 public key, PEM-armored. Used to verify every `entry.signature`. |
+| `key_id`               | string   | Stable identifier for the signing key (e.g. fingerprint or slug). For correlation across exports. |
+| `key_published_at`     | string   | ISO 8601 UTC timestamp — when this signing key was first published. Lets auditors verify a key was in use during `export.range`. |
 | `chain_head_hash`      | string   | 64 lowercase hex chars (SHA-256). Must equal the last entry's `hash`. |
-| `tsa_anchor_chain`     | array    | One or more RFC 3161 timestamps over entry hashes. Non-empty. |
+| `fold_base`            | string \| null, optional | 64 lowercase hex chars. The fold state the retained chain starts from. **Absent or `null` means the history fold starts from GENESIS** (64 zeros). Set by the platform when a retention purge removed the oldest sealed rows: their hashes were folded into this baseline before deletion, so `fold(fold_base, retained hashes)` still reproduces every anchored fold value. See [README.md → The history fold](../README.md#the-history-fold-sha256-fold-v2). |
+| `lineage_reset_at`     | string \| null, optional | ISO 8601 timestamp. **Present only when the chain lineage was force-reset** because a prefix was truncated *outside* retention maintenance (a bug, incident tooling, or tampering). When present, the retained rows still verify, but this export represents only history **since** the reset — pre-reset entries are absent and unverifiable. The verifier surfaces it as a loud warning; it never fails the checks. Distinct from `fold_base`: `fold_base` marks *lawful* retention, `lineage_reset_at` marks an *anomalous* truncation, and both can appear together. Absent or `null` means the lineage is intact. |
+| `tsa_anchor_chain`     | array    | Zero or more RFC 3161 anchors over the chain's history. May be **empty** — an org with no anchors yet, or a range containing none. Whether an empty (or unbindable) chain is acceptable is the verifier's **anchoring check**, not a schema constraint — see [README.md → What it checks](../README.md#what-it-checks). |
+
+There is no `instructions` field — the platform envelope does not carry one.
 
 ### `tsa_anchor_chain[i]`
 
-| Field                     | Type   | Notes |
-|---------------------------|--------|-------|
-| `checkpoint_after_entry`  | number | 1-indexed position of the entry this anchor checkpoints. Its `hash` must equal `anchored_data`. |
-| `tsa_url`                 | string | `https:` URL of the TSA that produced the TSR. |
-| `tsa_cacert_url`          | string | `https:` URL where the TSA's CA certificate can be downloaded. Fetched at run time (capped 15 s / 1 MB); pass `--ca-file <path>` to read locally instead. |
-| `tsa_tsr_base64`          | string | Base64-encoded RFC 3161 TimeStampResp bytes — fed to `openssl ts -verify`. |
-| `anchored_data`           | string | 64 hex chars — the hash the TSR covers. Verified to equal the checkpoint entry's `hash`, and that the TSR covers exactly these bytes. |
+Two anchor versions, distinguished by `algo`:
+
+| Field                     | Type            | Notes |
+|---------------------------|-----------------|-------|
+| `checkpoint_after_entry`  | number          | The `seq`, **within this export**, of the entry this anchor binds to — the last entry its commitment covers here. Informational (the anchoring check binds via `anchored_entry_id`/`anchored_data`, not this field). After a retention purge the export is re-sequenced from 1, so this is the in-export seq, not the sealed-row count when the anchor was minted. |
+| `tsa_url`                 | string          | `https:` or `http:` URL of the TSA that produced the TSR. Recorded so auditors can re-fetch a fresh TSR from the same authority if needed. Identifies the TSA only — never fetched or trusted by the verifier, and some public TSAs serve RFC 3161 over plain HTTP only (the token is signed, so transport security adds nothing). |
+| `tsa_cacert_url`          | string          | `https:` URL where the TSA's CA certificate can be downloaded. The verifier does **not** trust this by default — it verifies against its bundled trust roots instead (or `--ca-file`, if given). This field is only fetched, capped at 15 s and 1 MB, when `--allow-untrusted-tsa` explicitly opts into trusting the export's own declared CA. |
+| `tsa_tsr_base64`          | string          | Base64-encoded RFC 3161 TimeStampResp bytes — fed to `openssl ts -verify`. |
+| `anchored_data`           | string          | 64-hex — the value the TSR signed: a single row's hash (v1) or a history-fold state (v2, see [README.md → The history fold](../README.md#the-history-fold-sha256-fold-v2)). Not required to equal `verification.chain_head_hash` — which entry(ies) it attests to is a **binding** question, resolved by the anchoring check, not this schema. The RFC 3161 request placed the raw 32 bytes `hex2bin(anchored_data)` directly as the messageImprint, so verification uses `openssl ts -verify … -digest <anchored_data>` (not `-data`). |
+| `algo`                    | string, optional | `"row-hash-v1"` or `"sha256-fold-v2"`. **Absent means the legacy v1 (row-hash) anchor.** |
+| `anchored_entry_id`       | string \| null, optional | The anchor's `latest_entry_id`. **Required (non-null)** when `algo` is `"sha256-fold-v2"` — the anchoring check needs it to know which entry's position to fold through. Optional and may be `null` for v1 anchors (legacy rows have no `latest_entry_id`). |
+
+**v1 (`row-hash-v1`, or `algo` absent):** `anchored_data` is a single entry's `hash`. Attests that ONE ROW existed at token time. The anchoring check binds it by finding the exported entry whose `hash` matches.
+
+**v2 (`sha256-fold-v2`):** `anchored_data` is the [history fold](../README.md#the-history-fold-sha256-fold-v2) state through `anchored_entry_id`'s position. Attests the entire prefix **since the fold base** — existence, content, order, and count — up to and including that entry (the fold base is GENESIS for an unpurged chain, or `verification.fold_base` after a retention purge; entries before the fold base were purged and are not attested by this anchor). Only bindable in a genesis-rooted export (`export.range.from === null`); the anchoring check recomputes the fold from `verification.fold_base` (GENESIS when absent) through the position of the entry whose `id` matches `anchored_entry_id` and requires it to equal `anchored_data`.
 
 ## `entries[i]`
 
-Every entry carries the full set of audit-log columns the integrity hash is computed from, so the hash is recomputable from the envelope alone.
+Entries are **flat** rows (the exact canonical columns that feed the row hash) — there are no nested `actor` / `resource` / `timestamp` objects. Indexed by 0; `seq` is 1-indexed and contiguous (`entry[i].seq === i + 1`).
 
-| Field             | Type            | Notes |
-|-------------------|-----------------|-------|
-| `user_id`         | int/string/null | Acting user id (or null for non-user actors). |
-| `org_id`          | int/string/null | Organization id. |
-| `project_id`      | int/string/null | Project id (or null). |
-| `action`          | string          | Action name (e.g. `ai.chat.message`). |
-| `entity_type`     | string/null     | Type of the acted-on entity. |
-| `entity_id`       | int/string/null | Id of the acted-on entity. |
-| `metadata`        | object/array/null | Action-specific metadata. Key-sorted recursively before hashing. |
-| `ip_address`      | string/null     | Source IP. |
-| `created_at`      | string          | ISO 8601 timestamp of the action. |
-| `phi_disposition` | string/null     | PHI handling disposition (e.g. `none`, `redacted`, `contains_phi`). |
-| `subject_type`    | string/null     | Type of the data subject (e.g. `patient`). |
-| `subject_id_hmac` | string/null     | HMAC of the data subject's id (never the raw id). |
-| `prev_hash`       | string          | 64 hex chars — the previous entry's `hash`. For a sliced export the first entry's `prev_hash` points at a row outside the window. |
-| `hash`            | string          | 64 hex chars — the row's `integrity_hash` (see below). |
-| `signature`       | string          | `"ed25519:<base64>"` — detached Ed25519 signature over the `hash` hex string. |
+| Field             | Type          | Notes |
+|-------------------|---------------|-------|
+| `seq`             | number        | 1-indexed, contiguous within the export. |
+| `id`              | string        | The audit row id. |
+| `user_id`         | string \| null | Acting user, or null for system/API events. |
+| `org_id`          | string        | Tenant the row belongs to. |
+| `project_id`      | string \| null | Project scope, when project-scoped. |
+| `action`          | string        | Action name (e.g. `assistant.message.sent`). Opaque to the verifier. |
+| `entity_type`     | string \| null | Type of the acted-on entity. |
+| `entity_id`       | string \| null | Id of the acted-on entity. |
+| `metadata`        | object \| null | Event metadata. Recursively key-sorted before hashing (see below). |
+| `ip_address`      | string \| null | Source IP, when recorded. |
+| `created_at`      | string        | ISO 8601 — when the row was recorded. |
+| `phi_disposition` | string \| null | PHI disposition column (part of the hash). |
+| `subject_type`    | string \| null | PHI subject type (part of the hash). |
+| `subject_id_hmac` | string \| null | PHI subject id HMAC (part of the hash). |
+| `prev_hash`       | string \| null | 64 hex chars — `entries[i-1].hash`. **`null` for the first entry** (chain genesis — or the retention boundary, where the platform re-roots the chain after a purge), not an all-zeros string. Not part of the hash input. |
+| `hash`            | string        | 64 hex chars — the row hash (see below). |
+| `signature`       | string        | `"ed25519:<base64>"` — Ed25519 signature over the **hex `hash` string itself** (`Buffer.from(hash, "utf8")`), verifiable against `verification.public_key_pem`. |
 
-## The integrity hash
+## Row hash
 
-`entry.hash` is the SHA-256 (lowercase hex) of a JSON array of the audit-log columns, in this **exact order**:
+Each `hash` is `sha256_hex(JSON.stringify(ARR))` where `ARR` is the 12-element positional array, in exactly this order:
 
 ```
-[ user_id, org_id, project_id, action, entity_type, entity_id,
-  metadata, ip_address, created_at, phi_disposition, subject_type, subject_id_hmac ]
+[ user_id, org_id, project_id ?? null, action, entity_type, entity_id,
+  CANON(metadata), ip_address, created_at,
+  phi_disposition ?? null, subject_type ?? null, subject_id_hmac ?? null ]
 ```
 
-encoded the way the platform's `json_encode($array, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)` encodes it (no whitespace, slashes and non-ASCII left literal), with `metadata` first canonicalized by **recursively key-sorting every object** while preserving array/list order. The hash deliberately does **not** fold in `prev_hash`. Reference implementation: `AuditLog::computeHashFromAttributes()` on the platform; mirrored in [`src/hash.js`](../src/hash.js) and [`src/canonical.js`](../src/canonical.js).
+`prev_hash` is **not** part of the hash input — the chain is linked by the separate `prev_hash === entries[i-1].hash` check. Default `JSON.stringify` byte-matches the platform's PHP `json_encode(…, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)`.
 
-Chain **linkage** is the separate `entry.prev_hash === previousEntry.hash` check — not a running hash.
+`CANON(metadata)` mirrors the platform's `canonicalizeForHash`: recursively, a plain object has its keys sorted ascending with values recursed; an array keeps its order with elements recursed; scalars (and `null`) are unchanged (an empty array stays `[]`). Implemented in [`src/canonical.js`](../src/canonical.js).

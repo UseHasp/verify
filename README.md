@@ -5,7 +5,7 @@
 <h1 align="center">@usehasp/verify</h1>
 
 <p align="center">
-  <em>Offline verifier for Hasp signed audit exports. Zero telemetry. Standard primitives only.</em>
+  <em>Offline verifier for HASP signed audit exports. Zero telemetry. Standard primitives only.</em>
 </p>
 
 <p align="center">
@@ -18,13 +18,13 @@
 
 ---
 
-**For auditors, compliance reviewers, and customers who want to verify Hasp audit exports for themselves.**
+**For auditors, compliance reviewers, and customers who want to verify HASP audit exports for themselves.**
 
-Hasp hashes every audit-log entry into a tamper-evident chain, signs each one with a per-tenant Ed25519 key published out-of-band, and anchors the chain with an RFC 3161 timestamp from an independent TSA. This tool re-runs those checks on an export so you don't have to trust Hasp's word for it. The same checks can be run by hand from the [manual recipe](https://usehasp.com/trust/verify) — this tool is a convenience, not a trust anchor.
+HASP signs every audit-log entry with an Ed25519 key — published independently at a well-known URL — and chains them with SHA-256, then anchors the chain's history with RFC 3161 timestamps from an independent TSA. This tool re-runs those seven checks on an export so you don't have to trust HASP's word for it. The same checks can be run by hand from the [manual recipe](https://usehasp.com/trust/verify) — this tool is a convenience, not a trust anchor.
 
-- **Standard primitives.** SHA-256, Ed25519, RFC 3161 — verified with Node `crypto` and `openssl ts`. No bespoke crypto.
-- **Two network fetches, both replaceable.** The published-key document and the TSA CA cert. Supply both locally (`--keys-file`, `--ca-file`) for fully offline operation.
-- **Auditable.** A few hundred lines of plain JS. Read it in one sitting.
+- **One default network call, by design.** The published-key check fetches the tenant's independently-published signing key from `/trust/keys/{tenant_id}` — that fetch is the point, not a leak: it's how the tool avoids trusting the key embedded in the export. Pass `--keys-file` to read that document from disk instead. The TSA anchor check does **not** reach the network by default — it verifies against a bundled FreeTSA root cert — so a fully offline run needs only `--keys-file`.
+<!-- verify:loc core=314 total=2595 -->
+- **Auditable.** The cryptographic primitives — [`merkle.js`](src/merkle.js), [`fold.js`](src/fold.js), [`canonical.js`](src/canonical.js), [`checks/chain.js`](src/checks/chain.js), and [`checks/signature.js`](src/checks/signature.js): the hash chain, the history fold, and the Ed25519 signature math — are 314 lines of plain JS over Node `crypto`. Start there; it's "read it in one sitting." That's not the *whole* trust boundary, though: [`checks/published-key.js`](src/checks/published-key.js) establishes the key the signature check verifies against — get that wrong and every signature check passes against a forged key — so it belongs on the same reading list, just not in this line count. The rest of `src/` (2,595 lines total) is that published-key resolution plus schema validation, CLI ergonomics, the v1.1 customer-segment envelope variant, and signing-key revocation ([`checks/key-revocation.js`](src/checks/key-revocation.js)) — real functionality, not padding. A CI check (`scripts/check-readme-loc.mjs`, run from the monorepo's `ci-verify.yml`) pins both numbers to the measured source so this claim can't go stale again.
 - **Reproducible.** npm provenance + Sigstore attestation on every release. Same input → same verdict, forever.
 
 <details>
@@ -48,9 +48,13 @@ Hasp hashes every audit-log entry into a tamper-evident chain, signs each one wi
 ## Quickstart
 
 ```bash
-# Grab a sample export and verify it. Requires Node 20+ and openssl.
+# Grab a sample export and its co-published keys, then verify. Requires Node 20+ and openssl.
 curl -O https://usehasp.com/trust/audit-export-sample.json
-npx @usehasp/verify audit-export-sample.json
+curl -o audit-keys.json https://usehasp.com/.well-known/audit-keys.json
+# The sample's tenant is a throwaway with no live /trust/keys endpoint, so the
+# published-key check reads its trust root from the downloaded keys doc.
+# A real export from your org needs no --keys-file — its key is fetched live.
+npx @usehasp/verify audit-export-sample.json --keys-file audit-keys.json
 ```
 
 Expected output:
@@ -58,10 +62,12 @@ Expected output:
 ```
 ✓ schema valid
 ✓ chain intact (4 / 4 entries)
-✓ published key matched (key_01J9YV0F3JBA7Z2N8D5Q3R7V8M)
+✓ published key matches (key_id …)
 ✓ signatures verified (4 / 4)
+✓ time-attested
+  — entries 1..4 time-attested (history commitment)
 ✓ TSA anchor valid
-  — https://freetsa.org/tsr
+  — https://freetsa.org/tsr (genTime 2026-08-02T19:52:03.000Z)
 
 VERIFIED.
 ```
@@ -97,8 +103,8 @@ hasp-verify export.json
 ## Requirements
 
 - **Node.js 20+** (uses built-in `node:crypto` Ed25519, no native deps).
-- **OpenSSL 1.1+** on `PATH` (used only for `openssl ts -verify` — RFC 3161 TSA anchor check). Skip with `--skip-tsa` if you don't have it.
-- **Network** for two fetches: the published-key document (`GET /trust/keys/{tenant_id}`) and the TSA CA certificate (URL is in the export). Supply them locally with `--keys-file <path>` and `--ca-file <path>` (or `--skip-key-check` / `--skip-tsa`) for fully offline operation.
+- **OpenSSL 1.1+** on `PATH` (used only for `openssl ts -verify` / `openssl ts -reply` — RFC 3161 TSA anchor check). Skip with `--skip-tsa` if you don't have it.
+- **Network** to fetch the tenant's published signing key from `/trust/keys/{tenant_id}` (the trust root the published-key check resolves independently of the export). Pass `--keys-file <path>` to read that document from disk instead. The TSA anchor check does **not** need network by default — it verifies against a bundled FreeTSA root cert — so `--keys-file` alone is enough for fully offline operation.
 
 > **macOS LibreSSL caveat.** macOS ships LibreSSL by default and `openssl ts -verify` behaves differently from OpenSSL. Install OpenSSL 3 via Homebrew (`brew install openssl@3`) and put it first on `PATH`, or pass `--skip-tsa`.
 
@@ -122,11 +128,21 @@ hasp-verify <export.json | -> [options]
 Options:
   --json             Emit machine-readable JSON instead of a human report.
   --skip-tsa         Skip the RFC 3161 TSA anchor check (offline mode).
-  --skip-key-check   Skip the published-key fetch + match; verify signatures
-                     against the embedded key (provenance unconfirmed).
-  --ca-file <p>      Read TSA CA cert from a local PEM file (no network).
-  --keys-file <p>    Read the published-keys document from a local JSON file.
-  --keys-url <u>     Override the published-keys URL.
+  --allow-unanchored Accept an export with zero TSA anchors as a
+                     pass-with-warning instead of failing the anchoring
+                     check. An anchor that IS present but doesn't bind to
+                     this export still fails regardless of this flag.
+  --ca-file <p>      Trust this local PEM file as the TSA CA instead of the
+                     bundled FreeTSA root (no network).
+  --allow-untrusted-tsa
+                     Fetch each anchor's own tsa_cacert_url (embedded in the
+                     export under test) instead of the bundled FreeTSA root.
+                     Opt-in only — without it, an export naming its own
+                     attacker-controlled CA cannot pass.
+  --keys-file <p>    Read the published tenant keys from a local JSON document
+                     (the /trust/keys/{tenant_id} shape) instead of
+                     fetching /trust/keys — offline, and required for the sample.
+  --keys-base-url <u> Base URL for the /trust/keys endpoint (default app.usehasp.com).
   --verbose          Print extra detail (success: summary; failure: full check JSON).
   -h, --help         Show help.
   -v, --version      Show version.
@@ -135,13 +151,13 @@ Options:
 Read from stdin by passing `-` as the file argument:
 
 ```bash
-cat export.json | hasp-verify - --skip-tsa --skip-key-check
+cat export.json | hasp-verify - --skip-tsa
 ```
 
-Verify fully offline with a previously archived CA cert and keys document (see [docs/AIR-GAPPED.md](docs/AIR-GAPPED.md)):
+Verify the TSA anchor fully offline with a previously archived CA cert (see [docs/AIR-GAPPED.md](docs/AIR-GAPPED.md)):
 
 ```bash
-hasp-verify export.json --ca-file ./freetsa-cacert.pem --keys-file ./trust-keys.json
+hasp-verify export.json --ca-file ./freetsa-cacert.pem
 ```
 
 Exit codes:
@@ -154,20 +170,59 @@ Exit codes:
 
 ## What it checks
 
-Algorithms are pinned: **Ed25519** for signatures, **SHA-256** for the chain, **RFC 3161** for the timestamp anchor. The tool rejects exports that declare anything else.
+Algorithms are pinned: **Ed25519** for signatures, **SHA-256** for the chain and the history fold, **RFC 3161** for the timestamp anchors. The tool rejects exports that declare anything else.
 
-A schema preflight runs first, then four cryptographic checks. Any failure stops the run and reports the failing check.
+Seven checks, in this order. Any failure stops the run and reports the failing check.
 
-0. **Schema** *(preflight)* — `schema_version` is `1.0`, every required field is present (including all integrity-hash columns on each entry), hashes are 64-hex, TSA URLs are `https:`.
+1. **Schema** — `schema_version` is `1.0`, all required fields present, `entries[*].seq` is 1-indexed and contiguous, `chain_head_hash` is 64-hex, TSA URLs are `https:`, and each anchor's `anchored_data` is 64-hex. `tsa_anchor_chain` may be empty. Each anchor's `algo` (absent = legacy `row-hash-v1`) must be `"row-hash-v1"` or `"sha256-fold-v2"`; `anchored_entry_id` is required when `algo` is `"sha256-fold-v2"`.
    → *proves the export has the shape downstream checks expect; malformed input fails loudly instead of being silently coerced.*
-1. **Hash chain** — for every entry, the integrity hash recomputed from its audit-log fields (`sha256` of the canonical field array — see [docs/SCHEMA.md](docs/SCHEMA.md)) matches the declared `entry.hash`; each `entry.prev_hash` equals the previous entry's `hash`; the last entry's hash equals `chain_head_hash`; and each anchor's `anchored_data` equals its checkpoint entry's hash.
-   → *proves no entry was added, removed, or mutated after signing, and binds the timestamp to this chain.*
-2. **Published key** — fetch `GET https://app.usehasp.com/trust/keys/{tenant_id}` (or `--keys-file`), find the key whose `key_id` matches `verification.key_id`, confirm it is not revoked, and confirm it matches the embedded `public_key_pem`. The matched **published** key is what signatures are then verified against.
-   → *proves the signing key is the tenant's real, published key — not one an attacker embedded and signed with.*
-3. **Signatures** — every entry's `ed25519:<base64>` signature verifies against the published key, over the entry's `hash` **hex string**.
-   → *proves each entry was signed by the holder of the published key; the chain check already tied that hash to the entry's contents.*
-4. **TSA anchor** — for each anchor in `tsa_anchor_chain`: decode TSR, fetch CA cert from `tsa_cacert_url` (or read from `--ca-file`), run `openssl ts -verify -in <tsr> -CAfile <cacert> -data <anchored_data>`, require `Verification: OK`.
-   → *proves the checkpointed hash existed at the timestamped instant; an attacker who later compromises the signing key cannot retroactively forge older entries without also compromising the TSA.*
+2. **Hash chain** — for every entry, `sha256(canonical_json([12 positional columns, with metadata recursively key-sorted]))` matches the declared `entry.hash`. Up to four more fields append in a fixed order — `asserted_actor_hmac`, `customer_id`, `caller_attribution`, `user_agent` — each present only when the entry carries it, with every earlier absent field in that order encoded as an explicit `null` whenever a later one is present (so no two field combinations can ever hash the same way). An entry with none of the four uses the exact 12-element form. Entries link by `prev_hash` (`null` on the first entry, previous entry's `hash` thereafter — `prev_hash` is not part of the hash). The final entry's hash matches `verification.chain_head_hash`.
+   → *proves no entry was added, removed, or mutated after signing — any tampering, including stripping or adding an optional field, breaks the chain.*
+3. **Published key** — resolve the tenant's audit-signing key(s) *independently* of the export (fetched from `{--keys-base-url}/trust/keys/{tenant_id}`, default `https://app.usehasp.com`; or read offline from `--keys-file`, a saved copy of that per-tenant document) and require every embedded key — `verification.public_key_pem`, or every entry of `verification.keys[]` on an export whose window spans a signing-key rotation — to match its published counterpart on key material. The signature check then verifies against these trusted keys, never the embedded ones.
+   → *proves every signing key is one HASP actually publishes at a source the attacker doesn't control — an export re-signed with a forged keypair fails here instead of passing every signature check.*
+4. **Signatures** — every entry's `ed25519:<base64>` signature verifies against its trusted published key over the hex `hash` string itself (`Buffer.from(entry.hash, "utf8")`) — the export's single key, or (when `verification.keys[]` is present) the key selected by that entry's own `key_id`, which fails closed if it names a key absent from the published set.
+   → *proves each entry was signed by the holder of its published key, not anyone else — and, in a rotation-spanning export, by the specific key it claims.*
+5. **Anchoring** — binds every anchor in `tsa_anchor_chain` to THIS export. A **v1** (`row-hash-v1`, or `algo` absent) anchor's `anchored_data` must equal some exported entry's `hash` — it attests that one row existed at token time. A **v2** (`sha256-fold-v2`) anchor requires a genesis-rooted export (`export.range.from === null`) and recomputes the [history fold](#the-history-fold-sha256-fold-v2) from `verification.fold_base` (genesis when absent) through `anchored_entry_id`'s position — it must equal `anchored_data`, attesting the prefix *since the fold base* (existence, content, order, and count) up to and including that entry. Any anchor that can't be bound fails the check; zero anchors fails unless `--allow-unanchored`. Reports **coverage**: the highest v2-bound position ("entries 1..k time-attested"), any v1 row-level attestations, and the suffix not yet covered by a history commitment ("signed, not covered by a history commitment"). Always runs — never skipped.
+   → *proves an anchor is evidence for THIS export's history, not just a validly-formed timestamp — closes the gap where an attacker with signing-key access rewrites and re-signs an already-anchored entry: the row hash chain and signatures still verify, but the fold recomputation catches it.*
+6. **TSA anchor** — for each anchor: decode the TSR, trust it against a CA cert from the **trust bundle shipped with this tool** (every root pinned under `roots/` — currently FreeTSA, production HASP's default TSA; see `roots/README.md` for the full set and how to add one), or `--ca-file` if given, or (only with `--allow-untrusted-tsa`) the export's own declared `tsa_cacert_url`; run `openssl ts -verify -in <tsr> -CAfile <cacert> -digest <anchor's own anchored_data>`, require `Verification: OK`. The digest is passed directly (not via `-data`) because the platform placed the raw 32 bytes of `anchored_data` as the RFC 3161 messageImprint. Each token's `genTime` is parsed (`openssl ts -reply -text`) and printed; if it predates the newest entry the anchor is bound to (beyond a small clock-skew allowance), the check fails as a backdated timestamp.
+   → *proves the anchored value existed at the timestamped instant, from a TSA this tool trusts independently of the export — not one the export gets to name for itself. Combined with the anchoring check above: a v2 anchor proves the attested prefix existed in that exact state at that time; entries after the newest anchor are signature-protected only until the next anchor.*
+7. **Signing-key revocation** — for each entry whose signing key is published as `revoked` (resolved in the published-key check above, never from the export itself), the entry fails UNLESS an anchor already bound above covers it with a TSA `genTime` that precedes the key's `revoked_at` — proving the signature predates the compromise. That case passes but prints a `signed_under_later_revoked_key` notice rather than passing silently. Skipped entirely when no published key in the export is revoked.
+   → *proves rotation isn't the only way to respond to a compromised key: a customer can repudiate a specific key outright, and every already-issued signature under it is re-evaluated against that repudiation instead of being grandfathered in forever.*
+
+By default the TSA check trusts only the bundled trust roots — an export that names its own CA at `tsa_cacert_url` (a value the export itself controls) is rejected with an "untrusted TSA" error unless you pass `--ca-file <path>` to trust a specific CA explicitly, or `--allow-untrusted-tsa` to fetch and trust whatever CA the export names (only for sources you already trust; this re-admits the trust-root circularity the default closes).
+
+### The history fold (`sha256-fold-v2`)
+
+A v2 anchor doesn't timestamp a single row — it timestamps a running commitment over the *entire prefix* of the chain up to some entry. `GENESIS` is 64 ASCII zero characters; each step folds the next row's hash in:
+
+```
+state_0 = "0000000000000000000000000000000000000000000000000000000000000000"   # 64 zeros
+state_i = sha256_hex( ascii(state_{i-1}) || ascii(hash_i) )
+```
+
+where `hash_i` is the i-th sealed entry's row hash, in chain order (`created_at` asc, `id` asc, per org). An auditor can reproduce this by hand with nothing but `sha256sum`:
+
+```bash
+# Start from fold_base if the export declares one (retention-rebased
+# export), otherwise from GENESIS: 64 zero chars.
+state=$(jq -r '.verification.fold_base // empty' export.json)
+[ -n "$state" ] || state=$(printf '0%.0s' {1..64})
+for hash in $(jq -r '.entries[].hash' export.json); do
+  state=$(printf '%s%s' "$state" "$hash" | sha256sum | cut -d' ' -f1)
+done
+echo "$state"   # compare against the anchor's anchored_data
+```
+
+If it matches `verification.tsa_anchor_chain[i].anchored_data` for the anchor whose `anchored_entry_id` is that last entry's id, the anchor attests the whole prefix existed, in that exact order and content, at the timestamped instant.
+
+**Retention purges and `fold_base`.** Audit retention windows eventually delete the oldest sealed rows. Before deleting them, the platform folds their hashes into a per-tenant baseline and emits it as `verification.fold_base`, and the first retained entry's `prev_hash` is re-rooted to `null`. Folding the exported entries from `fold_base` then reproduces the exact fold values every earlier anchor committed to, so anchors minted *before* the purge still bind — their timestamps keep attesting the retained rows' age. The value of `fold_base` itself never needs to be trusted: a fabricated base (or any tampered retained entry) cannot reproduce an already-issued token's `anchored_data` without inverting the SHA-256 fold, so a successful binding still proves the retained rows existed, in that order, as part of the anchored history at token time. What is necessarily lost with the purged rows is only *their* attestation — the fold since `fold_base` says nothing about content that was deleted. A `fold_base`-carrying export still verifies (this is the lawful path), but the verifier prints a loud `RETENTION PURGE` notice so a reviewer never mistakes a purge-rebased export for one that starts at genesis.
+
+**Lineage resets and `lineage_reset_at`.** A lawful retention purge always maintains `fold_base`. If instead a prefix is removed *without* that maintenance — a bug, incident tooling, or a malicious operator deleting rows directly — the platform's next purge detects the orphaned boundary, force-resets the lineage (re-rooting from genesis), raises an internal tamper alert, and stamps `verification.lineage_reset_at` on every subsequent export. The verifier prints this as a loud `CHAIN LINEAGE WAS RESET` warning: the retained rows still verify, but the export represents only history since the reset, and anything before it is gone and unverifiable. A reset export can therefore never be mistaken for a pristine full history — if you did not expect one, treat it as a finding.
+
+> **Verifying the published sample?** Its tenant is a throwaway with no live `/trust/keys` endpoint, so pass the co-published keys document offline:
+> `hasp-verify audit-export-sample.json --keys-file audit-keys.json` (download both from [usehasp.com/trust/verify](https://usehasp.com/trust/verify)).
+>
+> `https://usehasp.com/.well-known/audit-keys.json` is that sample tenant's key document — the same `{ tenant_id, keys[] }` shape as `/trust/keys/{tenant_id}` — published on the marketing site because the throwaway tenant has no live endpoint. It is **not** the platform's well-known document: `https://app.usehasp.com/.well-known/audit-keys.json` is a discovery pointer (`{ algo, keys_url_template }`) to `/trust/keys/{tenant_id}`, deliberately not a key list, so no single URL enumerates every tenant. For a real export, verify against `https://app.usehasp.com/trust/keys/{tenant_id}` — which the tool fetches itself.
 
 Field-by-field schema reference: [docs/SCHEMA.md](docs/SCHEMA.md). Machine-readable JSON Schema: [schema/v1.0.json](schema/v1.0.json).
 
@@ -196,7 +251,8 @@ if (!result.ok) {
 
 | Export `schema_version` | Tool version | Status   |
 |-------------------------|--------------|----------|
-| `1.0`                   | `2.x`        | current  |
+| `1.0`                   | `1.x`        | current  |
+| `1.1` (`variant: "customer_segment"`) | `>= 1.1`     | current  |
 
 ## Trust & provenance
 
@@ -231,7 +287,7 @@ Auditors already trust OpenSSL. Bundling our own TSR parser would mean asking au
 <details>
 <summary><strong>Can I run fully offline?</strong></summary>
 
-Yes. Pass `--skip-tsa` to skip the only network fetch (the TSA CA cert). The schema, chain, and signature checks all run locally with no network. The TSA anchor check is the only one that needs the cert — if you have the cert on disk, you can run `openssl ts -verify` manually against the embedded TSR.
+Yes. Pass `--keys-file <path>` with a copy of the tenant's published-keys document (the default network call — everything else runs locally, including the TSA anchor check, which trusts the CA cert bundled with this tool rather than fetching one). If you don't have the keys document either, pass `--expectedKey` (programmatic use) or fall back to `--skip-tsa` plus manually diffing the embedded key against an archived copy.
 </details>
 
 <details>
@@ -243,20 +299,19 @@ It doesn't, by design. The tool is a convenience layer over the same primitives 
 <details>
 <summary><strong>Does it phone home?</strong></summary>
 
-No. The tool touches the network for exactly two things: fetching the published-key document (`GET /trust/keys/{tenant_id}`) and fetching the TSA CA certificate at the URL embedded in the export. Both fetches are capped at 15 s and 1 MB. Supply them from disk with `--keys-file <path>` and `--ca-file <path>`, or disable them with `--skip-key-check` and `--skip-tsa`. No analytics, no error reporting, no update checks.
+No. By default the tool touches the network for exactly one thing: fetching the tenant's published signing key from `/trust/keys/{tenant_id}` — this is a deliberate part of the trust model (an export re-signed with a forged key must not verify against itself), not telemetry. Pass `--keys-file <path>` to read that document from disk instead. The TSA anchor check never reaches the network by default — it trusts a CA cert bundled with the tool — unless you explicitly opt in with `--allow-untrusted-tsa`, in which case it fetches the CA cert URL embedded in the export (capped at 15 s and 1 MB). No analytics, no error reporting, no update checks.
 </details>
 
 <details>
 <summary><strong>Will this still verify in 10 years?</strong></summary>
 
-Yes, if you archive the TSA CA certificate alongside the export. The certificate is fetched from `tsa_cacert_url` at verify time; if that URL eventually 404s, the TSR bytes in the export are still valid but unverifiable without the cert. Recommended archival bundle:
+Yes. The TSA trust root the default path uses (the bundled FreeTSA cert, valid until 2041) ships inside the tool itself, so a pinned copy of `@usehasp/verify` at the version that produced `VERIFIED` carries its own trust anchor — no separate CA cert archival needed for the default path. Recommended archival bundle:
 
 - `export.json`
-- the CA cert PEM downloaded at export time (from `tsa_cacert_url`)
-- the published-keys document downloaded at export time (from `/trust/keys/{tenant_id}`)
+- the tenant's published-keys document (`audit-keys.json` / `/trust/keys/{tenant_id}`) downloaded at export time — the published-key check's trust root
 - a pinned copy of `@usehasp/verify` at the version that produced `VERIFIED`
 
-Then run `hasp-verify export.json --ca-file ./tsa-cacert.pem --keys-file ./trust-keys.json` to verify against the local files with no network access. `--skip-tsa` / `--skip-key-check` let you re-run the remaining checks indefinitely even without those files. Full cookbook: [docs/AIR-GAPPED.md](docs/AIR-GAPPED.md).
+Then run `hasp-verify export.json --keys-file ./audit-keys.json` with no network access at all — the published-key check reads the archived doc and the TSA check reads its bundled root. `--skip-tsa` lets you re-run the schema, chain, and signature checks indefinitely even without OpenSSL. Full cookbook: [docs/AIR-GAPPED.md](docs/AIR-GAPPED.md).
 </details>
 
 ## Security

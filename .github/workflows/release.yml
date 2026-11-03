@@ -1,12 +1,28 @@
 name: release
 
-# Publish runs on main only. Staging is for PR validation via test.yml.
-# Earlier setup also triggered this workflow on staging, producing
-# duplicate changeset PRs and unnecessary changesets-action invocations.
+# Publish-only. Versioning is owned upstream in the monorepo (CONTRIBUTING.md
+# "Cut a release"): the tree that lands on main here has ALREADY had
+# `changeset version` applied — package.json + CHANGELOG bumped, changeset files
+# consumed. This workflow therefore only PUBLISHES; it never opens a "Version
+# Packages" PR. That is deliberate: the monorepo one-way-mirrors its tree onto
+# main, so a version bump made on THIS side would be reverted by the next mirror
+# push. Owning the bump upstream keeps the mirror and the release from fighting.
+#
+# The "no unconsumed changesets" guard below fails loud if a changeset ever
+# reaches main un-versioned, instead of silently drifting.
+#
+# Runs on main only. workflow_dispatch(dry_run) rehearses the whole path — build,
+# smoke test, publish preview — without publishing to npm.
 on:
   push:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Rehearse the release (build + smoke test + npm publish --dry-run) without publishing'
+        type: boolean
+        default: false
 
 concurrency:
   group: release-${{ github.ref }}
@@ -14,7 +30,6 @@ concurrency:
 
 permissions:
   contents: write
-  pull-requests: write
   id-token: write
   attestations: write
 
@@ -26,7 +41,7 @@ jobs:
     # environment: npm-production
     steps:
       - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
           persist-credentials: true
@@ -45,6 +60,21 @@ jobs:
 
       - name: Install
         run: npm ci
+
+      # Fail loud if a changeset reached main un-versioned. Versioning is owned
+      # upstream (CONTRIBUTING.md): the monorepo runs `changeset version` before
+      # merge, so main should carry NO changeset files. If one is here, the bump
+      # was skipped — publishing now would ship the wrong (un-bumped) version,
+      # and the next mirror push would clobber any bump this side tried to make.
+      - name: Guard — no unconsumed changesets on main
+        run: |
+          pending=$(find .changeset -maxdepth 1 -name '*.md' ! -name 'README.md' 2>/dev/null || true)
+          if [ -n "$pending" ]; then
+            echo "::error::Unconsumed changeset(s) on main:"; echo "$pending"
+            echo "::error::Versioning is monorepo-owned — run 'changeset version' in packages/verify BEFORE merging (see CONTRIBUTING.md). Publishing an un-versioned tree is blocked."
+            exit 1
+          fi
+          echo "no unconsumed changesets — tree is release-ready"
 
       - name: Verify dependency signatures
         run: npm audit signatures
@@ -74,14 +104,23 @@ jobs:
           ./node_modules/.bin/hasp-verify "$GITHUB_WORKSPACE/test/fixtures/valid.json" --skip-tsa
           rm "$GITHUB_WORKSPACE/$tarball"
 
-      - name: Changesets — version PR or publish
+      # Rehearsal only (workflow_dispatch with dry_run=true): show exactly what
+      # would be published, without publishing. The build + smoke test above
+      # have already run, so this exercises the whole path bar the final upload.
+      - name: Publish preview (dry run)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        run: npm publish --dry-run
+
+      # Publish-only: no `version:` script, so changesets/action never opens a
+      # Version PR — it publishes when package.json is ahead of npm (the guard
+      # above guarantees no changesets remain). createGithubReleases still tags +
+      # cuts the GitHub Release.
+      - name: Publish to npm
         id: changesets
-        uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.dry_run) }}
+        uses: changesets/action@63a615b9cd06ba9a3e6d13796c7fbcb080a60a0b # v1.8.0
         with:
           publish: npm run release
-          version: npm run version
-          commit: "chore(release): version packages"
-          title: "chore(release): version packages"
           createGithubReleases: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

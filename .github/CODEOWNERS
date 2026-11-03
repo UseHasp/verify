@@ -3,9 +3,9 @@
 *                              @benjamincharity
 
 # Release pipeline + supply-chain critical
-/.github/workflows/release.yml @benjamincharity
-/.github/workflows/test.yml    @benjamincharity
-/.changeset/                   @benjamincharity
+/.github/workflows/release.yml    @benjamincharity
+/.github/workflows/real-world.yml @benjamincharity
+/.changeset/                      @benjamincharity
 /CHANGELOG.md                  @benjamincharity
 /package.json                  @benjamincharity
 /package-lock.json             @benjamincharity

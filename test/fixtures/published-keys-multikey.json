@@ -1,0 +1,17 @@
+{
+  "tenant_id": "01mkfixture0000000000tenant",
+  "keys": [
+    {
+      "key_id": "01mkfixture000000000000key1",
+      "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAk5zsKCz4mUrDtX5GKuFHr4aAGXrtJl+ZcanHYWwnclQ=\n-----END PUBLIC KEY-----\n",
+      "published_at": "2026-07-01T00:00:00+00:00",
+      "status": "retired"
+    },
+    {
+      "key_id": "01mkfixture000000000000key2",
+      "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAMSD2bkPkfKYZg5wGPz1qde97SEh4C4S7a9KG2YKAQD8=\n-----END PUBLIC KEY-----\n",
+      "published_at": "2026-07-19T00:00:00+00:00",
+      "status": "active"
+    }
+  ]
+}

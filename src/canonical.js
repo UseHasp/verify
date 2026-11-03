@@ -1,63 +1,39 @@
 /**
- * Canonical JSON encoding for the per-entry integrity hash.
+ * Canonical value transform for the audit-row hash.
  *
- * The platform computes each entry's `hash` (its `integrity_hash`) as the
- * SHA-256 of a fixed-order JSON array of audit-log columns, encoded by PHP's
+ * Mirrors the HASP platform's `AuditLog::canonicalizeForHash()` (PHP): the
+ * `metadata` object is recursively key-sorted before it is placed into the
+ * positional hash array, so a JSONB key-order round-trip on the platform side
+ * cannot change the digest. Concretely:
  *
- *     json_encode($array, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
+ *   - plain object → new object with keys sorted ascending, values recursed
+ *   - array        → same array, order preserved, elements recursed
+ *   - scalar/null  → returned unchanged (an empty array stays [])
  *
- * with the `metadata` element first canonicalized by recursively key-sorting
- * (ksort) every object while preserving the order of arrays/lists. See
- * `AuditLog::computeHashFromAttributes()` in the platform for the reference
- * implementation. This module reproduces that encoding byte-for-byte so an
- * export can be re-hashed offline from the envelope alone.
+ * The result is a plain JS value; the chain check embeds it in the 12-element
+ * positional array and runs `JSON.stringify` over the whole array. Default
+ * `JSON.stringify` byte-matches PHP `json_encode(..., JSON_UNESCAPED_SLASHES |
+ * JSON_UNESCAPED_UNICODE)`, so no custom escaping is needed.
  *
- * Why `JSON.stringify` already matches `json_encode` with those two flags:
- *   - `JSON_UNESCAPED_SLASHES` — PHP escapes `/` as `\/` by default; the flag
- *     turns that off. `JSON.stringify` never escapes `/`. Match.
- *   - `JSON_UNESCAPED_UNICODE` — PHP escapes non-ASCII as `\uXXXX` by default;
- *     the flag emits literal UTF-8. `JSON.stringify` emits literal UTF-8. Match.
- *   - Neither escapes `<`, `>`, `&`, or `'` (those need PHP's JSON_HEX_* flags,
- *     which the platform does not set). Match.
- *   - Default spacing is 0 in both. Match.
- */
-
-/**
- * Recursively key-sort objects (ksort) while preserving array order. Returns a
- * new structure; the input is not mutated. Primitives pass through unchanged.
- *
- * Sorted objects are built on a null-prototype accumulator so an export
- * containing a literal `__proto__` key cannot pollute `Object.prototype`
- * during canonicalization. `JSON.stringify` still emits the key as
- * `"__proto__"`, preserving byte-for-byte equivalence with the platform.
+ * Implementation note: the sorted accumulator is `Object.create(null)` so a
+ * malicious `metadata` containing a literal `__proto__` key creates an own
+ * property (which `JSON.stringify` then emits as `"__proto__"`, matching PHP's
+ * `ksort` + `json_encode`) instead of mutating `Object.prototype`.
  *
  * @param {unknown} value
  * @returns {unknown}
  */
-export function canonicalize(value) {
+export function canonicalizeForHash(value) {
   if (Array.isArray(value)) {
-    return value.map(canonicalize);
+    return value.map(canonicalizeForHash);
   }
   if (value && typeof value === "object") {
     /** @type {Record<string, unknown>} */
     const sorted = Object.create(null);
     for (const key of Object.keys(value).sort()) {
-      sorted[key] = canonicalize(/** @type {Record<string, unknown>} */ (value)[key]);
+      sorted[key] = canonicalizeForHash(/** @type {Record<string, unknown>} */ (value)[key]);
     }
     return sorted;
   }
   return value;
-}
-
-/**
- * Encode a value exactly as the platform's
- * `json_encode(..., JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)` would.
- * Objects are NOT sorted here — only `metadata` is canonicalized, and only by
- * the caller, so the fixed field-array order is preserved.
- *
- * @param {unknown} value
- * @returns {string}
- */
-export function encodeForHash(value) {
-  return JSON.stringify(value);
 }

@@ -1,6 +1,6 @@
 # Security Policy
 
-This policy covers the `@usehasp/verify` package in this repository. For Hasp's overall security program, infrastructure controls, and compliance posture, see the [Hasp Security page](https://usehasp.com/security) and the [Hasp Trust Center](https://usehasp.com/trust).
+This policy covers the `@usehasp/verify` package in this repository. For HASP's overall security program, infrastructure controls, and compliance posture, see the [HASP Security page](https://usehasp.com/security) and the [HASP Trust Center](https://usehasp.com/trust).
 
 ## Reporting a Vulnerability
 
@@ -24,7 +24,7 @@ The authoritative manual verification recipe lives at <https://usehasp.com/trust
 ## Known Limitations
 
 - **Duplicate JSON keys.** `JSON.parse` silently keeps the last occurrence of a duplicated object key. An export crafted with duplicate keys will be canonicalized using the parser's last-key-wins value. Because the signature and hash chain cover the same canonicalized payload that the parser sees, a duplicate-key forgery cannot pass verification — the signature would not match. The behavior is documented here for auditors who may diff raw bytes against the parsed structure.
-- **Network reach.** The TSA anchor check fetches `tsa_cacert_url` (URL is visible in the export). The fetch is capped at 15 s and 1 MB. The check can be skipped entirely with `--skip-tsa`. No other network calls.
+- **Network reach.** By default the tool makes exactly one network call: the published-key check fetches the tenant's signing key from `/trust/keys/{tenant_id}` — an independent trust root the export cannot substitute for itself. Pass `--keys-file` to read that document from disk instead. The TSA anchor check does **not** reach the network by default; it verifies against a CA cert bundled with the tool (the FreeTSA root, production HASP's configured TSA). Only `--allow-untrusted-tsa` makes the tool fetch a CA cert URL embedded in the export under test — an explicit opt-in, since that URL is attacker-controlled on a forged export. Both network calls, when made, are capped at 15 s and 1 MB.
 
 ## Verifying the package you installed
 

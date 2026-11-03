@@ -1,0 +1,92 @@
+{
+    "schema_version": "1.0",
+    "export": {
+        "tenant": "Interior Deletion Spike Tenant",
+        "tenant_id": "01kz1yy5rz8mytek56k3mxt985",
+        "range": {
+            "from": null,
+            "to": null
+        },
+        "exported_at": "2026-08-02T19:24:13+00:00",
+        "exported_by": null,
+        "entry_count": 3
+    },
+    "verification": {
+        "algo": "ed25519",
+        "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAHndrqCp/gRMkHh86Aveaid2k6L5a/swt5Wl9x9IqcV0=\n-----END PUBLIC KEY-----\n",
+        "key_id": "01kz1yy5s465d8jq4cbyxt1vd4",
+        "key_published_at": "2026-08-02T19:24:13+00:00",
+        "chain_head_hash": "0bd3e076718fa1fa03c513fec5746736d3bf7c321f9ddde981308c322194e35f",
+        "tsa_anchor_chain": [
+            {
+                "checkpoint_after_entry": 3,
+                "tsa_url": "https://freetsa.org/tsr",
+                "tsa_cacert_url": "https://freetsa.org/files/cacert.pem",
+                "tsa_tsr_base64": "ZmFrZS10c2EtcmVzcG9uc2UtYnl0ZXM=",
+                "anchored_data": "9c68fe86cde12d2bf0b9778c775de083930c1711e37f8f12c98e55e94a557c94",
+                "anchored_at": "2026-08-02T19:24:13+00:00",
+                "algo": "sha256-fold-v2",
+                "anchored_entry_id": "01kz1yy5s8h5a5xptvv8vb6qmv"
+            }
+        ]
+    },
+    "entries": [
+        {
+            "seq": 1,
+            "id": "01kz1yy5s5gy6dc7vjkbs5m6jf",
+            "user_id": null,
+            "org_id": "01kz1yy5rz8mytek56k3mxt985",
+            "project_id": null,
+            "action": "assistant.message.sent",
+            "entity_type": null,
+            "entity_id": null,
+            "metadata": null,
+            "ip_address": "127.0.0.1",
+            "created_at": "2026-08-02T19:24:13+00:00",
+            "phi_disposition": null,
+            "subject_type": null,
+            "subject_id_hmac": null,
+            "prev_hash": null,
+            "hash": "2cb9d4dac5896abf72204c8ddd36db53c94d5d9a72ada702d6cca85733e293d5",
+            "signature": "ed25519:LLNum2qEl24LDy+G9l5Ixt6KUs8WLqZsNIHNIf9jhq9NG7ESLFSNaA0riorOKG4inaUd3d5RDpwYIz0/8yuLDA=="
+        },
+        {
+            "seq": 2,
+            "id": "01kz1yy5s7dc0r0cfwbybn1sga",
+            "user_id": null,
+            "org_id": "01kz1yy5rz8mytek56k3mxt985",
+            "project_id": null,
+            "action": "policy.gateway.evaluated",
+            "entity_type": null,
+            "entity_id": null,
+            "metadata": null,
+            "ip_address": "127.0.0.1",
+            "created_at": "2026-08-02T19:24:13+00:00",
+            "phi_disposition": null,
+            "subject_type": null,
+            "subject_id_hmac": null,
+            "prev_hash": "2cb9d4dac5896abf72204c8ddd36db53c94d5d9a72ada702d6cca85733e293d5",
+            "hash": "525c586073792aa6910317581b2a778edba9d9a0bd47c8c509f1b79b9f24d1d2",
+            "signature": "ed25519:a0EI/C/loxu0XlTy9CSfdA8srb0AW8Ns2LGW1HiT4G0MkGGAV6wVvsV7aB3wBQvuU3AMNqbUPqtEei7gaTfLBQ=="
+        },
+        {
+            "seq": 3,
+            "id": "01kz1yy5s8h5a5xptvv8vb6qmv",
+            "user_id": null,
+            "org_id": "01kz1yy5rz8mytek56k3mxt985",
+            "project_id": null,
+            "action": "audit.export.generated",
+            "entity_type": null,
+            "entity_id": null,
+            "metadata": null,
+            "ip_address": "127.0.0.1",
+            "created_at": "2026-08-02T19:24:13+00:00",
+            "phi_disposition": null,
+            "subject_type": null,
+            "subject_id_hmac": null,
+            "prev_hash": "525c586073792aa6910317581b2a778edba9d9a0bd47c8c509f1b79b9f24d1d2",
+            "hash": "0bd3e076718fa1fa03c513fec5746736d3bf7c321f9ddde981308c322194e35f",
+            "signature": "ed25519:j674diTR+QRXdop4D0eS4eApJ/KilTlW6Y00+1RBBwjFgvGv8U4kMB9nUywEw4+2W4qdLziT+TEzkst/X2PFDA=="
+        }
+    ]
+}

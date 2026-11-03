@@ -1,0 +1,329 @@
+{
+  "_comment": "Known-answer test vector for the audit integrity hash + per-entry Ed25519 signature. Pinned by BOTH the platform emitter's hash-parity test and this repo's hash-parity.test.js, so any change to the field order, metadata canonicalization (recursive key-sort), JSON encoding flags, or the signed-message definition (the hash hex STRING, not its bytes) fails on one side against this frozen answer. It is a cross-language contract, not a self-consistency check. The keypair is a throwaway derived from the documented seed below; it signs nothing real. Never hand-edit this file — regenerate it from the emitter (see CONTRIBUTING.md).",
+  "seed_hex": "7e1f5eac11a8bf46f877143b9e7f6053393198cd386e487ca1588baa6f974c4d",
+  "input": {
+    "user_id": "01HKUSER000000000000000000",
+    "org_id": "01HKORG0000000000000000000",
+    "project_id": null,
+    "action": "record.updated",
+    "entity_type": "Patient",
+    "entity_id": "01HKENTITY0000000000000000",
+    "metadata": {
+      "zeta": "a/b",
+      "alpha": {
+        "y": 1,
+        "x": "café"
+      },
+      "list": [
+        3,
+        1,
+        2
+      ]
+    },
+    "ip_address": "203.0.113.7",
+    "created_at": "2026-01-02T03:04:05+00:00",
+    "phi_disposition": "none",
+    "subject_type": null,
+    "subject_id_hmac": null
+  },
+  "expected_hash": "7bd2b4b61b1e770d3d4a1b847a308a2ee373421e329498d1f34032857b395ac1",
+  "signature": "ed25519:bhtiPM6um5gsUh2iyFilyikbnASx65kPVKpy82rU/c2pQdsbzJCPEWbdquZcZeU6+wXHT+hgOykfGZkfB8pMBw==",
+  "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAViaoKOmF1MDTd6tk521P1yis3RC7EFbldh4FjyUozeM=\n-----END PUBLIC KEY-----\n",
+  "attributed": {
+    "input": {
+      "user_id": "01HKUSER000000000000000000",
+      "org_id": "01HKORG0000000000000000000",
+      "project_id": null,
+      "action": "record.updated",
+      "entity_type": "Patient",
+      "entity_id": "01HKENTITY0000000000000000",
+      "metadata": {
+        "zeta": "a/b",
+        "alpha": {
+          "y": 1,
+          "x": "café"
+        },
+        "list": [
+          3,
+          1,
+          2
+        ]
+      },
+      "ip_address": "203.0.113.7",
+      "created_at": "2026-01-02T03:04:05+00:00",
+      "phi_disposition": "none",
+      "subject_type": null,
+      "subject_id_hmac": null,
+      "customer_id": "01HKCUSTOMER00000000000000"
+    },
+    "expected_hash": "a570fd31edab24e0cd1ea725eee21cdc6518c1b897dad8319e8f705cebb986b9",
+    "signature": "ed25519:WZGGpvXQcYPLElJLLxmRrpkPiCFjWdIxvuOcqWVQK1uYhcbhmgzQ4dmw8zprS7ieNYmzy77clsvyGrJKLHQJBg=="
+  },
+  "_extensions_comment": "Extended-form vectors for the digest-preserving extension rule: asserted_actor_hmac is extension slot 13, customer_id slot 14, each present only when the entry carries it, with the asserted slot encoded as an explicit null whenever the customer slot is present (injectivity - relabeling one extension as the other can never reproduce a digest). All signed with the same throwaway seed keypair. Never hand-edit; regenerate from the emitter.",
+  "asserted": {
+    "input": {
+      "user_id": "01HKUSER000000000000000000",
+      "org_id": "01HKORG0000000000000000000",
+      "project_id": null,
+      "action": "record.updated",
+      "entity_type": "Patient",
+      "entity_id": "01HKENTITY0000000000000000",
+      "metadata": {
+        "zeta": "a/b",
+        "alpha": {
+          "y": 1,
+          "x": "café"
+        },
+        "list": [
+          3,
+          1,
+          2
+        ]
+      },
+      "ip_address": "203.0.113.7",
+      "created_at": "2026-01-02T03:04:05+00:00",
+      "phi_disposition": "none",
+      "subject_type": null,
+      "subject_id_hmac": null,
+      "asserted_actor_hmac": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "expected_hash": "93bb403f4b3868ebe1bfbf71c8311e5835f7c716dee0ad7437e0ef226cd1f74b",
+    "signature": "ed25519:C34KBhNvocHux0wMELQmAU8ZzlWhI/0z8BNNdiFfTAZL4b0vqud7tx920iAYGQoGlNqxlWOeKy5KR6IVN9EeDg=="
+  },
+  "asserted_and_attributed": {
+    "input": {
+      "user_id": "01HKUSER000000000000000000",
+      "org_id": "01HKORG0000000000000000000",
+      "project_id": null,
+      "action": "record.updated",
+      "entity_type": "Patient",
+      "entity_id": "01HKENTITY0000000000000000",
+      "metadata": {
+        "zeta": "a/b",
+        "alpha": {
+          "y": 1,
+          "x": "café"
+        },
+        "list": [
+          3,
+          1,
+          2
+        ]
+      },
+      "ip_address": "203.0.113.7",
+      "created_at": "2026-01-02T03:04:05+00:00",
+      "phi_disposition": "none",
+      "subject_type": null,
+      "subject_id_hmac": null,
+      "asserted_actor_hmac": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "customer_id": "01HKCUSTOMER00000000000000"
+    },
+    "expected_hash": "7ea5b89d64493620dead0076e4e1a3b0c9e554be8efa891ccf79629f1d109361",
+    "signature": "ed25519:jmGpNtXKRbV0tjqgLxgveyzyW/siNR+U1rV5fpaikDlWN8ii3XdD2FL/tQOn6PIwH7BGEGlfxZWua+TMzBPWAg=="
+  },
+  "_hasp620_comment": "caller_attribution is extension slot 15, user_agent slot 16, gated behind digest_version >= 2 — a row sealed under digest_version 1 (every row that predates this change) never includes either slot in its hash regardless of what the raw columns hold, which is exactly what 'legacy_composition_unaffected' below pins (its expected_hash equals the base 12-element vector above even though its input carries populated caller_attribution/user_agent). All digest_version>=2 vectors are signed with the same throwaway seed keypair. Never hand-edit; regenerate from the emitter.",
+  "caller_attribution": {
+    "input": {
+      "user_id": "01HKUSER000000000000000000",
+      "org_id": "01HKORG0000000000000000000",
+      "project_id": null,
+      "action": "record.updated",
+      "entity_type": "Patient",
+      "entity_id": "01HKENTITY0000000000000000",
+      "metadata": {
+        "zeta": "a/b",
+        "alpha": {
+          "y": 1,
+          "x": "café"
+        },
+        "list": [
+          3,
+          1,
+          2
+        ]
+      },
+      "ip_address": "203.0.113.7",
+      "created_at": "2026-01-02T03:04:05+00:00",
+      "phi_disposition": "none",
+      "subject_type": null,
+      "subject_id_hmac": null,
+      "digest_version": 2,
+      "caller_attribution": {
+        "caller_type": "agent",
+        "caller_id": "01HKCRED0000000000000000000",
+        "org_id": "01HKORG0000000000000000000",
+        "delegating_user_id": "01HKUSER000000000000000000",
+        "personal_access_token_id": null,
+        "agent_credential_id": "01HKCRED0000000000000000000",
+        "agent_id": "01HKAGENT00000000000000000",
+        "delegation_chain": [
+          "01HKUSER000000000000000000"
+        ]
+      }
+    },
+    "expected_hash": "54f8c8f246f2c5a6d0555070f2958b1522f2a2710aaf696460d1ff9215915bbd",
+    "signature": "ed25519:ybx+cGnonY6Jwmb7lK3BglH9VFJw7f0RKLBR38JpO/uBXN44KR32V6vM9/FQViTu7XvclVNHDgbBFs2X12eZBw=="
+  },
+  "user_agent": {
+    "input": {
+      "user_id": "01HKUSER000000000000000000",
+      "org_id": "01HKORG0000000000000000000",
+      "project_id": null,
+      "action": "record.updated",
+      "entity_type": "Patient",
+      "entity_id": "01HKENTITY0000000000000000",
+      "metadata": {
+        "zeta": "a/b",
+        "alpha": {
+          "y": 1,
+          "x": "café"
+        },
+        "list": [
+          3,
+          1,
+          2
+        ]
+      },
+      "ip_address": "203.0.113.7",
+      "created_at": "2026-01-02T03:04:05+00:00",
+      "phi_disposition": "none",
+      "subject_type": null,
+      "subject_id_hmac": null,
+      "digest_version": 2,
+      "user_agent": "Mozilla/5.0 (compatible; HaspAgentSDK/1.0)"
+    },
+    "expected_hash": "f54877fe07ea3d518fd898699186ed429e7e31ca10279643f0d45740d7c33881",
+    "signature": "ed25519:K8R77Y821y/VK3Q2x6a3PW+uFTvZFi5dQfT7shsgp59mnFfUXItl271LApxIaTsQnwDnKjAlLAbX8uyTexNyCQ=="
+  },
+  "caller_attribution_and_user_agent": {
+    "input": {
+      "user_id": "01HKUSER000000000000000000",
+      "org_id": "01HKORG0000000000000000000",
+      "project_id": null,
+      "action": "record.updated",
+      "entity_type": "Patient",
+      "entity_id": "01HKENTITY0000000000000000",
+      "metadata": {
+        "zeta": "a/b",
+        "alpha": {
+          "y": 1,
+          "x": "café"
+        },
+        "list": [
+          3,
+          1,
+          2
+        ]
+      },
+      "ip_address": "203.0.113.7",
+      "created_at": "2026-01-02T03:04:05+00:00",
+      "phi_disposition": "none",
+      "subject_type": null,
+      "subject_id_hmac": null,
+      "digest_version": 2,
+      "caller_attribution": {
+        "caller_type": "agent",
+        "caller_id": "01HKCRED0000000000000000000",
+        "org_id": "01HKORG0000000000000000000",
+        "delegating_user_id": "01HKUSER000000000000000000",
+        "personal_access_token_id": null,
+        "agent_credential_id": "01HKCRED0000000000000000000",
+        "agent_id": "01HKAGENT00000000000000000",
+        "delegation_chain": [
+          "01HKUSER000000000000000000"
+        ]
+      },
+      "user_agent": "Mozilla/5.0 (compatible; HaspAgentSDK/1.0)"
+    },
+    "expected_hash": "5beab35aa4fc967363dbe82b15a8933180b4252392ae6e2062f0e53bcc5c7043",
+    "signature": "ed25519:3rqvCTWSyD7zQVIYSqQndaWtPbvpfE6ug/n4/Df5aHl8tmBrjZollUuiU87zjH5uvMzBi1E4/V3P1Ai71iYPBg=="
+  },
+  "all_extension_slots": {
+    "input": {
+      "user_id": "01HKUSER000000000000000000",
+      "org_id": "01HKORG0000000000000000000",
+      "project_id": null,
+      "action": "record.updated",
+      "entity_type": "Patient",
+      "entity_id": "01HKENTITY0000000000000000",
+      "metadata": {
+        "zeta": "a/b",
+        "alpha": {
+          "y": 1,
+          "x": "café"
+        },
+        "list": [
+          3,
+          1,
+          2
+        ]
+      },
+      "ip_address": "203.0.113.7",
+      "created_at": "2026-01-02T03:04:05+00:00",
+      "phi_disposition": "none",
+      "subject_type": null,
+      "subject_id_hmac": null,
+      "digest_version": 2,
+      "asserted_actor_hmac": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "customer_id": "01HKCUSTOMER00000000000000",
+      "caller_attribution": {
+        "caller_type": "agent",
+        "caller_id": "01HKCRED0000000000000000000",
+        "org_id": "01HKORG0000000000000000000",
+        "delegating_user_id": "01HKUSER000000000000000000",
+        "personal_access_token_id": null,
+        "agent_credential_id": "01HKCRED0000000000000000000",
+        "agent_id": "01HKAGENT00000000000000000",
+        "delegation_chain": [
+          "01HKUSER000000000000000000"
+        ]
+      },
+      "user_agent": "Mozilla/5.0 (compatible; HaspAgentSDK/1.0)"
+    },
+    "expected_hash": "2b8173ac652bdd96e3528acdd1ef2225381f80b2b60765827e8c7a6ea42ad989",
+    "signature": "ed25519:bs0GBWZoCXf4BCiR9meR25I6Wi45/vYNUuP1con5p4WcSKdbZ1OlhAs654VaAoEykbRd1iW1BckuarbiEjpAAQ=="
+  },
+  "legacy_composition_unaffected": {
+    "input": {
+      "user_id": "01HKUSER000000000000000000",
+      "org_id": "01HKORG0000000000000000000",
+      "project_id": null,
+      "action": "record.updated",
+      "entity_type": "Patient",
+      "entity_id": "01HKENTITY0000000000000000",
+      "metadata": {
+        "zeta": "a/b",
+        "alpha": {
+          "y": 1,
+          "x": "café"
+        },
+        "list": [
+          3,
+          1,
+          2
+        ]
+      },
+      "ip_address": "203.0.113.7",
+      "created_at": "2026-01-02T03:04:05+00:00",
+      "phi_disposition": "none",
+      "subject_type": null,
+      "subject_id_hmac": null,
+      "digest_version": 1,
+      "caller_attribution": {
+        "caller_type": "agent",
+        "caller_id": "01HKCRED0000000000000000000",
+        "org_id": "01HKORG0000000000000000000",
+        "delegating_user_id": "01HKUSER000000000000000000",
+        "personal_access_token_id": null,
+        "agent_credential_id": "01HKCRED0000000000000000000",
+        "agent_id": "01HKAGENT00000000000000000",
+        "delegation_chain": [
+          "01HKUSER000000000000000000"
+        ]
+      },
+      "user_agent": "Mozilla/5.0 (compatible; HaspAgentSDK/1.0)"
+    },
+    "expected_hash": "7bd2b4b61b1e770d3d4a1b847a308a2ee373421e329498d1f34032857b395ac1",
+    "signature": "ed25519:bhtiPM6um5gsUh2iyFilyikbnASx65kPVKpy82rU/c2pQdsbzJCPEWbdquZcZeU6+wXHT+hgOykfGZkfB8pMBw=="
+  }
+}

@@ -1,8 +1,11 @@
 name: test
 
+# PR-only. Pushes to main are already fully tested upstream: the monorepo's
+# ci-verify.yml runs this same matrix on every PR, and release.yml re-runs
+# lint/typecheck/test before it publishes — so a `push: main` run here would be
+# pure duplication of work already done (double CI minutes per release). This
+# still gates PRs raised inside the public repo (e.g. Dependabot bumps).
 on:
-  push:
-    branches: [main]
   pull_request:
 
 jobs:
@@ -14,7 +17,7 @@ jobs:
         node: [20, 22]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: ${{ matrix.node }}

@@ -1,0 +1,132 @@
+{
+  "schema_version": "1.1",
+  "variant": "customer_segment",
+  "export": {
+    "tenant": "Northridge Health",
+    "tenant_id": "01kzm482cndeecjsw58c2kr1c9",
+    "customer_id": "01kzm482d1ttjqzremk8wfghyb",
+    "customer_name": "Lakeside Family Clinic",
+    "range": {
+      "from": null,
+      "to": null
+    },
+    "exported_at": "2026-08-09T20:43:24+00:00",
+    "exported_by": "compliance@northridge.health",
+    "entry_count": 2
+  },
+  "verification": {
+    "algo": "ed25519",
+    "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAzMrX/bC7nllJfVqMdvkPyHWNAfh2hHDj9ASoSpVlyYc=\n-----END PUBLIC KEY-----\n",
+    "key_id": "01kzm482ddvtdsfegwg0c67n9r",
+    "key_published_at": "2026-08-09T20:43:20+00:00",
+    "segment_head_hash": "5883b8a1fba2edb3b20a79f57bb9be0f7b530bcc1bbef36c463edf5968ef5453",
+    "segment_anchor_chain": [
+      {
+        "checkpoint_after_entry": 2,
+        "fold_state": "b983eaa5bad261c0dd713135df18b27e315d0fdec644d6bbf21404c76293c8ec",
+        "merkle_path": [
+          {
+            "position": "right",
+            "hash": "0000000000000000000000000000000000000000000000000000000000000000"
+          },
+          {
+            "position": "right",
+            "hash": "45725791c47b32618cc57b88343e2bceec3b0a01b83bc97d144a2cbc11a20c3d"
+          },
+          {
+            "position": "right",
+            "hash": "39d9d59e0f99712ae74d2440fd055937b200949b9073d3f6bc490d5090cf60d0"
+          },
+          {
+            "position": "right",
+            "hash": "e23838e3961ee6ed4923ec07a990b1a0bc384187cf65046f26938a7225490e36"
+          },
+          {
+            "position": "right",
+            "hash": "d0696e974f2c6aea16827f035a83d3652d64e7c2b7f032db27e7e850de6f6c6a"
+          },
+          {
+            "position": "right",
+            "hash": "ef184c00a607bef4a714062e2d7c18cd1cab8e35c444fd76aeaf41378d610485"
+          },
+          {
+            "position": "right",
+            "hash": "53160c2eeea32a9bbf836f7482a64dd42bd531d60a40639f1c17e79f2a172c8f"
+          },
+          {
+            "position": "right",
+            "hash": "2fdc154b9e317a9fd84e388bc64aeb4d84c19efbddd6b06074473b27f08692fd"
+          },
+          {
+            "position": "right",
+            "hash": "517b2f033813121642006eb5e0fb1600c2c166217aa1c9ecd2c02dffd23e7e5f"
+          },
+          {
+            "position": "right",
+            "hash": "cd963dfe95284118539d8098cb38276f809e1492dbfdf2ef3f39cec639342f7f"
+          }
+        ],
+        "merkle_root": "855efef447f8ec8c9eb2705c919c454d2f05dd3d9757b6acf26572e884d51cf7",
+        "tsa_url": "https://freetsa.org/tsr",
+        "tsa_cacert_url": "https://freetsa.org/files/cacert.pem",
+        "tsa_tsr_base64": "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",
+        "anchored_at": "2026-08-09T20:43:24+00:00",
+        "algo": "sha256-fold-merkle-v1",
+        "anchored_entry_id": "01kzm482e2gz4dmxvgpv6j2bpw"
+      }
+    ]
+  },
+  "entries": [
+    {
+      "seq": 1,
+      "id": "01kzm482dtnyvx39jd5wt2avnp",
+      "user_id": null,
+      "org_id": "01kzm482cndeecjsw58c2kr1c9",
+      "project_id": "01kzm482d3wsq4j23aqxnjybw6",
+      "customer_id": "01kzm482d1ttjqzremk8wfghyb",
+      "action": "document.rag.ingested",
+      "entity_type": "document",
+      "entity_id": null,
+      "metadata": {
+        "source": "intake-form.pdf",
+        "pages": 3,
+        "ocr": true,
+        "project_id": "01kzm482d3wsq4j23aqxnjybw6"
+      },
+      "ip_address": "127.0.0.1",
+      "created_at": "2026-08-09T20:43:20+00:00",
+      "phi_disposition": null,
+      "subject_type": null,
+      "subject_id_hmac": null,
+      "segment_prev_hash": null,
+      "hash": "23c6aa6306d01995f3f9c7c3f4a7fe2a8a60d0213519c9fc25d136fb7de568af",
+      "signature": "ed25519:uHmwcSKASyJIPIUm1HtK6mkxLZPhGyw/urweLoiHNSx/w0TMWOyF04t+xN0Hy35nv75DGGffRNb17AAXpRUjAQ==",
+      "user_agent": "Symfony"
+    },
+    {
+      "seq": 2,
+      "id": "01kzm482e2gz4dmxvgpv6j2bpw",
+      "user_id": null,
+      "org_id": "01kzm482cndeecjsw58c2kr1c9",
+      "project_id": "01kzm482d3wsq4j23aqxnjybw6",
+      "customer_id": "01kzm482d1ttjqzremk8wfghyb",
+      "action": "policy.gateway.evaluated",
+      "entity_type": "gateway_request",
+      "entity_id": null,
+      "metadata": {
+        "decision": "allow",
+        "policy_id": "phi-egress-guard",
+        "project_id": "01kzm482d3wsq4j23aqxnjybw6"
+      },
+      "ip_address": "127.0.0.1",
+      "created_at": "2026-08-09T20:43:20+00:00",
+      "phi_disposition": null,
+      "subject_type": null,
+      "subject_id_hmac": null,
+      "segment_prev_hash": "23c6aa6306d01995f3f9c7c3f4a7fe2a8a60d0213519c9fc25d136fb7de568af",
+      "hash": "5883b8a1fba2edb3b20a79f57bb9be0f7b530bcc1bbef36c463edf5968ef5453",
+      "signature": "ed25519:A7vi0y9+3AxrPYumudoDCGPnXK4bxZrWggKkWx0AruUtuwM6X40YbBJ3FZAv8R/pn+H3E/PrFuO0WOg6zOAJDg==",
+      "user_agent": "Symfony"
+    }
+  ]
+}

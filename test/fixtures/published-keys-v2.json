@@ -1,0 +1,11 @@
+{
+  "tenant_id": "01v2fixture00000000000tenant",
+  "keys": [
+    {
+      "key_id": "01v2fixture00000000000key01",
+      "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAUKGvCFgVPc76vVvsVoNdo4/a1/tCSX03tsQQkpXreJs=\n-----END PUBLIC KEY-----\n",
+      "published_at": "2026-07-19T00:00:00+00:00",
+      "status": "active"
+    }
+  ]
+}

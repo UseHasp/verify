@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://usehasp.com/schema/audit-export/v1.0.json",
-  "title": "Hasp audit export, schema_version 1.0",
+  "title": "HASP audit export, schema_version 1.0",
   "description": "Authoritative shape check is in src/checks/schema.js; this document mirrors it for non-JS verifiers.",
   "type": "object",
   "required": ["schema_version", "export", "verification", "entries"],
@@ -14,42 +14,76 @@
       "additionalProperties": true,
       "properties": {
         "tenant": { "type": "string" },
-        "tenant_id": { "type": "string", "minLength": 1 },
+        "tenant_id": { "type": "string" },
         "range": {
           "type": "object",
           "required": ["from", "to"],
           "additionalProperties": true,
           "properties": {
-            "from": { "type": "string" },
-            "to": { "type": "string" }
+            "from": { "type": ["string", "null"] },
+            "to": { "type": ["string", "null"] }
           }
         },
         "exported_at": { "type": "string" },
-        "exported_by": { "type": "string" },
+        "exported_by": { "type": ["string", "null"] },
         "entry_count": { "type": "number" }
       }
     },
     "verification": {
       "type": "object",
-      "required": [
-        "algo",
-        "public_key_pem",
-        "key_id",
-        "key_published_at",
-        "chain_head_hash",
-        "tsa_anchor_chain"
-      ],
+      "required": ["algo", "chain_head_hash", "tsa_anchor_chain"],
       "additionalProperties": true,
+      "oneOf": [
+        {
+          "description": "Single-key export (the common case): one embedded key, no keys[] array. Byte-shape-identical to every pre-multi-key export.",
+          "required": ["public_key_pem", "key_id", "key_published_at"],
+          "not": { "required": ["keys"] }
+        },
+        {
+          "description": "Multi-key export: the window spans a signing-key rotation. keys[] carries every signing key present; each entry names which one signed it via its own key_id. Ambiguous trust root — keys[] alongside ANY singular key field — is rejected, not just all three at once.",
+          "required": ["keys"],
+          "not": {
+            "anyOf": [
+              { "required": ["public_key_pem"] },
+              { "required": ["key_id"] },
+              { "required": ["key_published_at"] }
+            ]
+          }
+        }
+      ],
       "properties": {
         "algo": { "const": "ed25519" },
-        "public_key_pem": { "type": "string", "pattern": "BEGIN PUBLIC KEY" },
-        "key_id": { "type": "string", "minLength": 1 },
-        "keys_url": { "type": "string", "format": "uri", "pattern": "^https://" },
+        "public_key_pem": { "type": "string" },
+        "key_id": { "type": "string" },
         "key_published_at": { "type": "string" },
+        "keys": {
+          "type": "array",
+          "minItems": 2,
+          "description": "Present only on a multi-key export — every signing key present in the export window. Absent on a single-key export, which carries public_key_pem/key_id/key_published_at instead.",
+          "items": {
+            "type": "object",
+            "required": ["key_id", "public_key_pem", "published_at"],
+            "additionalProperties": true,
+            "properties": {
+              "key_id": { "type": "string" },
+              "public_key_pem": { "type": "string" },
+              "published_at": { "type": "string" }
+            }
+          }
+        },
         "chain_head_hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "fold_base": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "Optional. The fold state the retained chain starts from — set when a retention purge rebased the history fold at the retention boundary. Absent or null means the fold starts from GENESIS (64 zeros)."
+        },
+        "lineage_reset_at": {
+          "type": ["string", "null"],
+          "description": "Optional. ISO 8601 timestamp of a forced chain-lineage reset (a prefix was truncated outside retention maintenance). When present, everything that verifies does so only for post-reset history; pre-reset entries are absent and unverifiable. Not a shape error — the verifier surfaces it loudly. Absent or null means the lineage is intact."
+        },
         "tsa_anchor_chain": {
           "type": "array",
-          "minItems": 1,
+          "description": "May be empty (org with no anchors yet, or a range containing none). Whether that's acceptable is the anchoring check's job, not a shape constraint.",
           "items": {
             "type": "object",
             "required": [
@@ -61,11 +95,31 @@
             ],
             "additionalProperties": true,
             "properties": {
-              "checkpoint_after_entry": { "type": "integer", "minimum": 1 },
-              "tsa_url": { "type": "string", "format": "uri", "pattern": "^https://" },
+              "checkpoint_after_entry": { "type": "number" },
+              "tsa_url": { "type": "string", "format": "uri", "pattern": "^https?://" },
               "tsa_cacert_url": { "type": "string", "format": "uri", "pattern": "^https://" },
-              "tsa_tsr_base64": { "type": "string", "minLength": 1 },
-              "anchored_data": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+              "tsa_tsr_base64": { "type": "string" },
+              "anchored_data": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$",
+                "description": "A single row's hash (v1) or a history-fold state (v2, see algo). Not required to equal chain_head_hash — which entry(ies) it attests to is a binding question for the verifier's anchoring check."
+              },
+              "algo": {
+                "enum": ["row-hash-v1", "sha256-fold-v2"],
+                "description": "Absent means the legacy v1 (row-hash) anchor."
+              },
+              "anchored_entry_id": {
+                "type": ["string", "null"],
+                "description": "The anchor's latest_entry_id. Required (non-null) when algo is sha256-fold-v2; may be null or absent for legacy v1 anchors."
+              }
+            },
+            "if": {
+              "properties": { "algo": { "const": "sha256-fold-v2" } },
+              "required": ["algo"]
+            },
+            "then": {
+              "properties": { "anchored_entry_id": { "type": "string", "minLength": 1 } },
+              "required": ["anchored_entry_id"]
             }
           }
         }
@@ -73,10 +127,11 @@
     },
     "entries": {
       "type": "array",
-      "minItems": 1,
       "items": {
         "type": "object",
         "required": [
+          "seq",
+          "id",
           "user_id",
           "org_id",
           "project_id",
@@ -95,21 +150,35 @@
         ],
         "additionalProperties": true,
         "properties": {
-          "user_id": { "type": ["integer", "string", "null"] },
-          "org_id": { "type": ["integer", "string", "null"] },
-          "project_id": { "type": ["integer", "string", "null"] },
-          "action": { "type": "string", "minLength": 1 },
+          "seq": { "type": "number", "minimum": 1 },
+          "id": { "type": "string" },
+          "user_id": { "type": ["string", "null"] },
+          "org_id": { "type": "string" },
+          "project_id": { "type": ["string", "null"] },
+          "action": { "type": "string" },
           "entity_type": { "type": ["string", "null"] },
-          "entity_id": { "type": ["integer", "string", "null"] },
-          "metadata": { "type": ["object", "array", "null"] },
+          "entity_id": { "type": ["string", "null"] },
+          "metadata": { "type": ["object", "null"] },
           "ip_address": { "type": ["string", "null"] },
-          "created_at": { "type": "string", "minLength": 1 },
+          "created_at": { "type": "string" },
           "phi_disposition": { "type": ["string", "null"] },
           "subject_type": { "type": ["string", "null"] },
           "subject_id_hmac": { "type": ["string", "null"] },
-          "prev_hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+          "prev_hash": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" },
           "hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
-          "signature": { "type": "string", "pattern": "^ed25519:" }
+          "signature": { "type": "string", "pattern": "^ed25519:" },
+          "caller_attribution": {
+            "type": "object",
+            "description": "Optional. Present only on a row sealed under digest_version >= 2 that carries attribution — which agent, API key, or delegation chain performed the action. Participates in the entry digest when present."
+          },
+          "user_agent": {
+            "type": "string",
+            "description": "Optional. Present only on a row sealed under digest_version >= 2 with a non-null value. Participates in the entry digest when present."
+          },
+          "key_id": {
+            "type": "string",
+            "description": "Optional. Present on every entry only when the export is multi-key (verification.keys[] present) — names which published key signed this entry."
+          }
         }
       }
     }
