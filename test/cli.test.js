@@ -189,6 +189,24 @@ describe("cli", () => {
     expect(r.stdout).toMatch(/anchors:\s+\d+/);
   });
 
+  it("--max-anchor-lag requires a number of hours", async () => {
+    const r = await run([resolve(FIXTURES, "valid.json"), "--max-anchor-lag", "soon"]);
+    expect(r.code).toBe(2);
+    expect(r.stderr).toMatch(/--max-anchor-lag requires a number of hours/);
+  });
+
+  it("--max-anchor-lag cannot be combined with --skip-tsa: the limit would go unchecked", async () => {
+    const r = await run([
+      resolve(FIXTURES, "valid.json"),
+      "--keys-file",
+      KEYS,
+      "--skip-tsa",
+      "--max-anchor-lag=24",
+    ]);
+    expect(r.code).toBe(1);
+    expect(r.stdout).toMatch(/cannot be enforced/);
+  });
+
   it("--ca-file requires an argument", async () => {
     const r = await run([resolve(FIXTURES, "valid.json"), "--ca-file"]);
     expect(r.code).toBe(2);

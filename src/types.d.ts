@@ -56,6 +56,24 @@ export interface VerifyOptions {
    * this option.
    */
   allowUnanchored?: boolean;
+  /**
+   * Fail when any attested entry was first time-attested more than this many
+   * hours after its `created_at`. Unset: a lag over 48 hours is reported in
+   * `VerifyResult.late_anchoring` but does not fail. Mirrors the CLI's
+   * `--max-anchor-lag` flag.
+   */
+  maxAnchorLagHours?: number;
+}
+
+export interface LateAnchoring {
+  /** The lag, in hours, beyond which an entry is counted. */
+  threshold_hours: number;
+  /** How many attested entries exceeded it. */
+  entries: number;
+  /** The first such entry's seq. */
+  first_seq: number;
+  /** The longest lag between an entry's created_at and its earliest covering anchor's genTime. */
+  max_lag_hours: number;
 }
 
 export type CheckOk = { ran: true; ok: true } & Record<string, unknown>;
@@ -105,6 +123,13 @@ export type AnchoringResult =
 export interface VerifyResult {
   /** Overall pass/fail. True iff every ran check passed. */
   ok: boolean;
+  /**
+   * Set when entries were first time-attested long after the time recorded on
+   * them. A token proves an entry existed BY its genTime, not AT its
+   * created_at. Null when every attested entry was anchored promptly, or when
+   * the TSA check was skipped.
+   */
+  late_anchoring: LateAnchoring | null;
   checks: {
     schema: CheckResult;
     chain: CheckResult;
@@ -131,9 +156,18 @@ export interface VerifyResult {
  * signature, anchoring, and TSA-anchor checks in order; short-circuits on
  * first failure.
  *
- * @param data Parsed audit-export JSON (the result of `JSON.parse`).
+ * @param data Parsed audit-export JSON — the result of {@link parseExport}
+ *   (preferred: exact for 64-bit integers) or of `JSON.parse`.
  * @param opts Optional overrides — skip TSA, accept unanchored exports, inject
  *   fetch, override openssl path, and supply the published-key trust root
  *   (expectedKey / keysFile / keysBaseUrl).
  */
 export function verifyExport(data: unknown, opts?: VerifyOptions): Promise<VerifyResult>;
+
+/**
+ * Parse audit-export JSON text without losing integers above 2^53: such
+ * tokens come back as `bigint`, everything else exactly as `JSON.parse`
+ * returns it. `JSON.parse` rounds those integers, so an entry whose metadata
+ * holds one could not be re-hashed.
+ */
+export function parseExport(text: string): unknown;

@@ -106,7 +106,7 @@ describe("checkTsa — default trust root (bundled FreeTSA cert)", () => {
   it("verifies with `openssl ts -verify -in <tsr> -CAfile <ca> -digest <anchor.anchored_data>` and never calls the fetcher", async () => {
     const r = await checkTsa(VALID, { fetcher: throwingFetcher() });
     expect(r.ok).toBe(true);
-    expect(r.anchors).toHaveLength(1);
+    expect(r.anchors).toHaveLength(VALID.verification.tsa_anchor_chain.length);
     expect(r.anchors[0].output).toMatch(/Verification:\s*OK/);
 
     const call = tsVerifyCall();
@@ -269,9 +269,10 @@ describe("checkTsa — --ca-file (explicit trust root)", () => {
 
 describe("checkTsa — --allow-untrusted-tsa (opt-in fetch of the export's own tsa_cacert_url)", () => {
   it("fetches the CA cert from the export's tsa_cacert_url", async () => {
-    let fetchedUrl = null;
+    /** @type {string[]} */
+    const fetchedUrls = [];
     const fetcher = async (url) => {
-      fetchedUrl = url;
+      fetchedUrls.push(url);
       return {
         ok: true,
         status: 200,
@@ -281,7 +282,8 @@ describe("checkTsa — --allow-untrusted-tsa (opt-in fetch of the export's own t
     };
     const r = await checkTsa(VALID, { fetcher, allowUntrustedTsa: true });
     expect(r.ok).toBe(true);
-    expect(fetchedUrl).toBe(VALID.verification.tsa_anchor_chain[0].tsa_cacert_url);
+    // Each anchor names its own TSA's CA cert; every one is fetched.
+    expect(fetchedUrls).toEqual(VALID.verification.tsa_anchor_chain.map((a) => a.tsa_cacert_url));
   });
 
   it("does NOT add the 'untrusted TSA' hint on failure — the caller opted in", async () => {

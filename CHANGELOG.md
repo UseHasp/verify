@@ -1,5 +1,30 @@
 # Changelog
 
+## 2.1.0
+
+### Minor Changes
+
+- eafdc5e: Close two ways to defeat the signing-key revocation check, and stop rejecting genuine exports.
+  
+  **Revocation can no longer be dodged by relabelling entries (security).** In a single-key export every signature is verified under `verification.key_id`, but the revocation check looked up the status of whatever `key_id` each entry carried. An export signed with a revoked key passed by giving its entries any other `key_id`. The status that governs an entry is now the status of the key its signature was verified under. A key with no published status, or published as `revoked` without a valid `revoked_at`, now fails closed instead of being treated as not revoked.
+  
+  **A token's `genTime` is read from the signed token only (security).** `genTime` was parsed from `openssl ts -reply -text` over the whole response, which prints the response's unsigned status text — newlines included — before the token's own fields. A genuine token re-wrapped in a response whose status text contained a `Time stamp:` line still verified, and the verifier reported the forged time. That time decides both the backdating check and whether a signature under a revoked key predates the revocation. The token is now extracted and printed alone.
+  
+  **Genuine exports that failed the chain check now verify.** The entry hash is recomputed with an encoder that reproduces the platform's canonical JSON byte for byte instead of `JSON.stringify`, which differs on floats outside 1e-4…1e17 (`2.0e-5` vs `0.00002`), U+2028/U+2029 (escaped vs raw), object key order, and integers above 2^53. An export containing any of these — a sub-cent cost in metadata, a `User-Agent` with a line separator — was reported as "chain broken".
+  
+  **Exports of a time window now verify.** The first entry of a windowed export (`export.range.from` set) links to an entry before the window, so its `prev_hash` is not `null`; the chain check required `null` and failed every such export. Later links are checked as before, and an export that claims to start at the chain head is still held to `null`.
+  
+  New export: `parseExport(text)` parses export JSON keeping integers above 2^53 exact (as `bigint`). Use it instead of `JSON.parse` before `verifyExport`; the CLI does.
+- 050518b: Support entries sealed under digest composition version 3, and report two things the verifier used to pass in silence.
+  
+  **Sealed `digest_version` and byte-ordered keys.** Entries sealed by the platform at composition version 3 carry a `digest_version` field. It is the fifth optional slot in the entry digest, so the version an entry was sealed under can no longer be changed afterwards, and for those entries the keys of `metadata` and `caller_attribution` are ordered by their UTF-8 bytes. That order is the same in every language; the older order (for entries without the field) depends on the sorting behaviour of the platform's runtime and could not be reproduced exactly for object keys mixing integer-like and digit-leading strings. Entries without `digest_version` verify exactly as before.
+  
+  **Late anchoring is reported.** A timestamp token proves an entry existed by the token's time, not at the entry's own `created_at`. When an attested entry's earliest covering anchor is more than 48 hours after its `created_at`, the result now carries `late_anchoring` and the CLI prints a `LATE ANCHORING` warning. New `--max-anchor-lag <hours>` / `maxAnchorLagHours` turns a lag beyond a caller-chosen limit into a failure (and fails closed if combined with `--skip-tsa`).
+  
+  **Unchecked revocation is reported.** When the trust root carries no status for a signing key (a bare PEM via `expectedKey`, or a keys document saved before statuses were published), `checks.keyRevocation.unchecked_keys` now lists it and the CLI prints `REVOCATION NOT CHECKED` instead of "no revoked signing keys".
+  
+  **Empty exports get a clear refusal.** An export with zero entries is refused with "export contains no entries … nothing to verify" instead of a complaint about `chain_head_hash`.
+
 ## 2.0.0
 
 ### Major Changes

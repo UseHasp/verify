@@ -38,8 +38,11 @@ describe.skipIf(process.platform === "darwin")(
         },
       });
       expect(r.ok).toBe(true);
-      expect(r.anchors).toHaveLength(1);
-      expect(r.anchors[0].genTime).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+      // One anchor per TSA the platform anchors with, each over the same fold.
+      expect(r.anchors).toHaveLength(VALID.verification.tsa_anchor_chain.length);
+      for (const anchor of r.anchors) {
+        expect(anchor.genTime).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+      }
     });
 
     it("verifies a real DigiCert TSA token against the bundled roots with no network access", async () => {

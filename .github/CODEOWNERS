@@ -1,15 +1,15 @@
 # Release-affecting paths require maintainer review.
 # Catch-all
-*                              @benjamincharity
+*                              @charity-wages
 
 # Release pipeline + supply-chain critical
-/.github/workflows/release.yml    @benjamincharity
-/.github/workflows/real-world.yml @benjamincharity
-/.changeset/                      @benjamincharity
-/CHANGELOG.md                  @benjamincharity
-/package.json                  @benjamincharity
-/package-lock.json             @benjamincharity
+/.github/workflows/release.yml    @charity-wages
+/.github/workflows/real-world.yml @charity-wages
+/.changeset/                      @charity-wages
+/CHANGELOG.md                  @charity-wages
+/package.json                  @charity-wages
+/package-lock.json             @charity-wages
 
 # Verifier source (the actual trust surface)
-/src/                          @benjamincharity
-/schema/                       @benjamincharity
+/src/                          @charity-wages
+/schema/                       @charity-wages

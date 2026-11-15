@@ -31,7 +31,7 @@
  * @property {string} revoked_at
  * @property {string} anchor_gen_time the covering anchor's genTime, which precedes revoked_at
  *
- * @typedef {{ok: true, notices: RevocationNotice[]} | {ok: false, error: string}} KeyRevocationResult
+ * @typedef {{ok: true, notices: RevocationNotice[], unchecked_keys: string[]} | {ok: false, error: string}} KeyRevocationResult
  */
 
 /**
@@ -58,7 +58,7 @@ function anchorCovers(algo, boundSeq, seq) {
  * @param {Array<{genTime: string}>} tsaAnchors bindings[i] and tsaAnchors[i] are the same anchor (both index verification.tsa_anchor_chain / segment_anchor_chain in order)
  * @returns {{genTime: string} | null}
  */
-function earliestCoveringAnchor(seq, bindings, tsaAnchors) {
+export function earliestCoveringAnchor(seq, bindings, tsaAnchors) {
   /** @type {{genTime: string} | null} */
   let best = null;
 
@@ -75,7 +75,7 @@ function earliestCoveringAnchor(seq, bindings, tsaAnchors) {
 }
 
 /**
- * @param {{entries: Array<{seq: number, key_id?: string}>, verification: {key_id?: string}}} data
+ * @param {{entries: Array<{seq: number, key_id?: string}>, verification: {key_id?: string, keys?: unknown[]}}} data
  * @param {{
  *   keyStatuses: Record<string, {status?: string, revoked_at?: string | null}>,
  *   bindings: Array<{index: number, algo: string, bound_seq: number}>,
@@ -86,16 +86,48 @@ function earliestCoveringAnchor(seq, bindings, tsaAnchors) {
 export function checkKeyRevocation(data, ctx) {
   /** @type {RevocationNotice[]} */
   const notices = [];
+  /** @type {Set<string>} */
+  const unchecked = new Set();
+  const singleKeyId = Array.isArray(data.verification.keys) ? null : data.verification.key_id;
 
   for (const entry of data.entries) {
-    // Single-key exports never carry a per-entry key_id — every
-    // entry is signed by verification.key_id.
-    const keyId = entry.key_id ?? data.verification.key_id;
-    if (typeof keyId !== "string") continue;
+    // The key whose status governs an entry is the key its signature was
+    // VERIFIED under, never a label the entry carries. A single-key export
+    // verifies every entry under verification.key_id, so that key governs
+    // whatever per-entry key_id an entry claims — otherwise an entry signed
+    // with a revoked key could name any other key_id and skip this check.
+    // Only a multi-key export (verification.keys[]) selects the key per
+    // entry, and there the signature check used that same key_id.
+    const keyId = singleKeyId ?? entry.key_id;
+    if (typeof keyId !== "string" || !Object.hasOwn(ctx.keyStatuses, keyId)) {
+      return {
+        ok: false,
+        error: `entry seq=${entry.seq} names key ${JSON.stringify(keyId ?? null)}, whose published status is unknown — cannot rule out revocation, failing closed`,
+      };
+    }
 
     const keyStatus = ctx.keyStatuses[keyId];
-    if (keyStatus?.status !== "revoked" || typeof keyStatus.revoked_at !== "string") {
+    if (keyStatus.status === undefined) {
+      // The trust root carried no status for this key — a bare PEM, or a
+      // keys document saved before statuses were published. The signature is
+      // genuine under that key, but nothing here can say whether the key was
+      // later revoked, so the caller is told rather than left to assume.
+      unchecked.add(keyId);
       continue;
+    }
+    if (keyStatus.status !== "revoked") {
+      continue;
+    }
+    // A key published as revoked with no usable revoked_at cannot be shown
+    // to have been valid at any time, so nothing signed under it passes.
+    if (
+      typeof keyStatus.revoked_at !== "string" ||
+      Number.isNaN(Date.parse(keyStatus.revoked_at))
+    ) {
+      return {
+        ok: false,
+        error: `entry seq=${entry.seq} is signed under key ${JSON.stringify(keyId)}, which is published as revoked without a valid revoked_at — no signature under it can be shown to predate the revocation`,
+      };
     }
 
     const revokedAtMs = Date.parse(keyStatus.revoked_at);
@@ -124,5 +156,5 @@ export function checkKeyRevocation(data, ctx) {
     };
   }
 
-  return { ok: true, notices };
+  return { ok: true, notices, unchecked_keys: [...unchecked].sort() };
 }

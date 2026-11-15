@@ -1,0 +1,1895 @@
+{
+    "description": "Known-answer vectors for the audit-row canonical JSON encoding. export_json is a value as an export carries it; canonical is the exact byte string the platform hashes for it in an entry without digest_version; canonical_byte_ordered is the same for an entry that carries digest_version. Generated \u2014 do not edit by hand.",
+    "vectors": [
+        {
+            "name": "small floats print in exponent form below 1e-4",
+            "export_json": "{\"cost\":2.0e-5,\"p\":0.0001,\"q\":0.00012,\"r\":1.0e-7,\"s\":1.5e-10,\"t\":5.0e-324}",
+            "canonical": "{\"cost\":2.0e-5,\"p\":0.0001,\"q\":0.00012,\"r\":1.0e-7,\"s\":1.5e-10,\"t\":5.0e-324}",
+            "canonical_byte_ordered": "{\"cost\":2.0e-5,\"p\":0.0001,\"q\":0.00012,\"r\":1.0e-7,\"s\":1.5e-10,\"t\":5.0e-324}"
+        },
+        {
+            "name": "large floats",
+            "export_json": "[1.0e+19,1.2345678901234568e+20,1.0e+21,1.0e+22,1.0e+25,1.7976931348623157e+308,-2.5e+30]",
+            "canonical": "[1.0e+19,1.2345678901234568e+20,1.0e+21,1.0e+22,1.0e+25,1.7976931348623157e+308,-2.5e+30]",
+            "canonical_byte_ordered": "[1.0e+19,1.2345678901234568e+20,1.0e+21,1.0e+22,1.0e+25,1.7976931348623157e+308,-2.5e+30]"
+        },
+        {
+            "name": "ordinary floats",
+            "export_json": "[0.1,0.30000000000000004,1.25,-3.75,123456.789,99.99,1000000000000000.5]",
+            "canonical": "[0.1,0.30000000000000004,1.25,-3.75,123456.789,99.99,1000000000000000.5]",
+            "canonical_byte_ordered": "[0.1,0.30000000000000004,1.25,-3.75,123456.789,99.99,1000000000000000.5]"
+        },
+        {
+            "name": "integers including beyond 2^53",
+            "export_json": "[0,-1,9007199254740991,9007199254740993,123456789012345678,9223372036854775807,-9223372036854775807,100000000000000000,1000000000000000]",
+            "canonical": "[0,-1,9007199254740991,9007199254740993,123456789012345678,9223372036854775807,-9223372036854775807,100000000000000000,1000000000000000]",
+            "canonical_byte_ordered": "[0,-1,9007199254740991,9007199254740993,123456789012345678,9223372036854775807,-9223372036854775807,100000000000000000,1000000000000000]"
+        },
+        {
+            "name": "line and paragraph separators are escaped",
+            "export_json": "{\"ua\":\"Mozilla\\u20285.0\\u2029end\"}",
+            "canonical": "{\"ua\":\"Mozilla\\u20285.0\\u2029end\"}",
+            "canonical_byte_ordered": "{\"ua\":\"Mozilla\\u20285.0\\u2029end\"}"
+        },
+        {
+            "name": "other string escapes",
+            "export_json": "[\"tab\\tnl\\nquote\\\"back\\\\slash/delctl\\u001fnul-free\",\"caf\\u00e9 \\u2615 \\ud834\\udd1e \\u65e5\\u672c\",\"\"]",
+            "canonical": "[\"tab\\tnl\\nquote\\\"back\\\\slash/delctl\\u001fnul-free\",\"caf\u00e9 \u2615 \ud834\udd1e \u65e5\u672c\",\"\"]",
+            "canonical_byte_ordered": "[\"tab\\tnl\\nquote\\\"back\\\\slash/delctl\\u001fnul-free\",\"caf\u00e9 \u2615 \ud834\udd1e \u65e5\u672c\",\"\"]"
+        },
+        {
+            "name": "integer-like keys sort numerically",
+            "export_json": "{\"10\":\"a\",\"9\":\"b\",\"100\":\"c\",\"-5\":\"d\",\"-50\":\"e\",\"0\":\"f\"}",
+            "canonical": "{\"-50\":\"e\",\"-5\":\"d\",\"0\":\"f\",\"9\":\"b\",\"10\":\"a\",\"100\":\"c\"}",
+            "canonical_byte_ordered": "{\"-5\":\"d\",\"-50\":\"e\",\"0\":\"f\",\"10\":\"a\",\"100\":\"c\",\"9\":\"b\"}"
+        },
+        {
+            "name": "string keys sort by bytes, not UTF-16 units",
+            "export_json": "{\"\\uff5e\":1,\"\\ud83d\\ude00\":2,\"z\":3,\"Z\":4,\"\\u00e9\":5,\"\":6}",
+            "canonical": "{\"\":6,\"Z\":4,\"z\":3,\"\u00e9\":5,\"\uff5e\":1,\"\ud83d\ude00\":2}",
+            "canonical_byte_ordered": "{\"\":6,\"Z\":4,\"z\":3,\"\u00e9\":5,\"\uff5e\":1,\"\ud83d\ude00\":2}"
+        },
+        {
+            "name": "integer keys sort before letter keys",
+            "export_json": "{\"b\":1,\"2\":2,\"a\":3,\"10\":4,\"B\":5}",
+            "canonical": "{\"2\":2,\"10\":4,\"B\":5,\"a\":3,\"b\":1}",
+            "canonical_byte_ordered": "{\"10\":4,\"2\":2,\"B\":5,\"a\":3,\"b\":1}"
+        },
+        {
+            "name": "non-canonical integer strings stay strings",
+            "export_json": "{\"01\":1,\"x1\":2,\"x01\":3}",
+            "canonical": "{\"01\":1,\"x01\":3,\"x1\":2}",
+            "canonical_byte_ordered": "{\"01\":1,\"x01\":3,\"x1\":2}"
+        },
+        {
+            "name": "nested objects and lists",
+            "export_json": "{\"z\":{\"b\":[3,1,{\"y\":1,\"x\":2}],\"a\":null},\"a\":[true,false,null]}",
+            "canonical": "{\"a\":[true,false,null],\"z\":{\"a\":null,\"b\":[3,1,{\"x\":2,\"y\":1}]}}",
+            "canonical_byte_ordered": "{\"a\":[true,false,null],\"z\":{\"a\":null,\"b\":[3,1,{\"x\":2,\"y\":1}]}}"
+        },
+        {
+            "name": "empty containers",
+            "export_json": "{\"list\":[],\"nested\":{\"also\":[]}}",
+            "canonical": "{\"list\":[],\"nested\":{\"also\":[]}}",
+            "canonical_byte_ordered": "{\"list\":[],\"nested\":{\"also\":[]}}"
+        },
+        {
+            "name": "sequential keys are a list",
+            "export_json": "[\"a\",\"b\",\"c\"]",
+            "canonical": "[\"a\",\"b\",\"c\"]",
+            "canonical_byte_ordered": "[\"a\",\"b\",\"c\"]"
+        },
+        {
+            "name": "non-sequential integer keys are an object",
+            "export_json": "{\"1\":\"a\",\"2\":\"b\"}",
+            "canonical": "{\"1\":\"a\",\"2\":\"b\"}",
+            "canonical_byte_ordered": "{\"1\":\"a\",\"2\":\"b\"}"
+        },
+        {
+            "name": "scalars",
+            "export_json": "[null,true,false,\"null\",\"1\",1]",
+            "canonical": "[null,true,false,\"null\",\"1\",1]",
+            "canonical_byte_ordered": "[null,true,false,\"null\",\"1\",1]"
+        },
+        {
+            "name": "random float 0",
+            "export_json": "[0.0007326835620000001]",
+            "canonical": "[0.0007326835620000001]",
+            "canonical_byte_ordered": "[0.0007326835620000001]"
+        },
+        {
+            "name": "random float 1",
+            "export_json": "[-4.88748378e-20]",
+            "canonical": "[-4.88748378e-20]",
+            "canonical_byte_ordered": "[-4.88748378e-20]"
+        },
+        {
+            "name": "random float 2",
+            "export_json": "[-7.975995399999999e+29]",
+            "canonical": "[-7.975995399999999e+29]",
+            "canonical_byte_ordered": "[-7.975995399999999e+29]"
+        },
+        {
+            "name": "random float 3",
+            "export_json": "[-6.10676191e+29]",
+            "canonical": "[-6.10676191e+29]",
+            "canonical_byte_ordered": "[-6.10676191e+29]"
+        },
+        {
+            "name": "random float 4",
+            "export_json": "[2.71188044e-11]",
+            "canonical": "[2.71188044e-11]",
+            "canonical_byte_ordered": "[2.71188044e-11]"
+        },
+        {
+            "name": "random float 5",
+            "export_json": "[-7.421294e+30]",
+            "canonical": "[-7.421294e+30]",
+            "canonical_byte_ordered": "[-7.421294e+30]"
+        },
+        {
+            "name": "random float 6",
+            "export_json": "[-6.766690190000001e-11]",
+            "canonical": "[-6.766690190000001e-11]",
+            "canonical_byte_ordered": "[-6.766690190000001e-11]"
+        },
+        {
+            "name": "random float 7",
+            "export_json": "[1453934900.0000002]",
+            "canonical": "[1453934900.0000002]",
+            "canonical_byte_ordered": "[1453934900.0000002]"
+        },
+        {
+            "name": "random float 8",
+            "export_json": "[9.771456850000001e-23]",
+            "canonical": "[9.771456850000001e-23]",
+            "canonical_byte_ordered": "[9.771456850000001e-23]"
+        },
+        {
+            "name": "random float 9",
+            "export_json": "[1086.65347]",
+            "canonical": "[1086.65347]",
+            "canonical_byte_ordered": "[1086.65347]"
+        },
+        {
+            "name": "random float 10",
+            "export_json": "[9.543041970000001e+33]",
+            "canonical": "[9.543041970000001e+33]",
+            "canonical_byte_ordered": "[9.543041970000001e+33]"
+        },
+        {
+            "name": "random float 11",
+            "export_json": "[477722.652]",
+            "canonical": "[477722.652]",
+            "canonical_byte_ordered": "[477722.652]"
+        },
+        {
+            "name": "random float 12",
+            "export_json": "[-4.61879887e+24]",
+            "canonical": "[-4.61879887e+24]",
+            "canonical_byte_ordered": "[-4.61879887e+24]"
+        },
+        {
+            "name": "random float 13",
+            "export_json": "[0.00354648146]",
+            "canonical": "[0.00354648146]",
+            "canonical_byte_ordered": "[0.00354648146]"
+        },
+        {
+            "name": "random float 14",
+            "export_json": "[7.35491139e-5]",
+            "canonical": "[7.35491139e-5]",
+            "canonical_byte_ordered": "[7.35491139e-5]"
+        },
+        {
+            "name": "random float 15",
+            "export_json": "[-5.05537027e-18]",
+            "canonical": "[-5.05537027e-18]",
+            "canonical_byte_ordered": "[-5.05537027e-18]"
+        },
+        {
+            "name": "random float 16",
+            "export_json": "[8.61978678e+17]",
+            "canonical": "[861978678000000000]",
+            "canonical_byte_ordered": "[861978678000000000]"
+        },
+        {
+            "name": "random float 17",
+            "export_json": "[89356378100]",
+            "canonical": "[89356378100]",
+            "canonical_byte_ordered": "[89356378100]"
+        },
+        {
+            "name": "random float 18",
+            "export_json": "[-23893477.7]",
+            "canonical": "[-23893477.7]",
+            "canonical_byte_ordered": "[-23893477.7]"
+        },
+        {
+            "name": "random float 19",
+            "export_json": "[4.975077699999999e+29]",
+            "canonical": "[4.975077699999999e+29]",
+            "canonical_byte_ordered": "[4.975077699999999e+29]"
+        },
+        {
+            "name": "random float 20",
+            "export_json": "[-4.2960825000000005e-23]",
+            "canonical": "[-4.2960825000000005e-23]",
+            "canonical_byte_ordered": "[-4.2960825000000005e-23]"
+        },
+        {
+            "name": "random float 21",
+            "export_json": "[6.15284187e-15]",
+            "canonical": "[6.15284187e-15]",
+            "canonical_byte_ordered": "[6.15284187e-15]"
+        },
+        {
+            "name": "random float 22",
+            "export_json": "[3.57458407e+24]",
+            "canonical": "[3.57458407e+24]",
+            "canonical_byte_ordered": "[3.57458407e+24]"
+        },
+        {
+            "name": "random float 23",
+            "export_json": "[-65834999600000000]",
+            "canonical": "[-65834999600000000]",
+            "canonical_byte_ordered": "[-65834999600000000]"
+        },
+        {
+            "name": "random float 24",
+            "export_json": "[-0.31601060000000003]",
+            "canonical": "[-0.31601060000000003]",
+            "canonical_byte_ordered": "[-0.31601060000000003]"
+        },
+        {
+            "name": "random float 25",
+            "export_json": "[-7.956921679999999e-7]",
+            "canonical": "[-7.956921679999999e-7]",
+            "canonical_byte_ordered": "[-7.956921679999999e-7]"
+        },
+        {
+            "name": "random float 26",
+            "export_json": "[9.87209958e+21]",
+            "canonical": "[9.87209958e+21]",
+            "canonical_byte_ordered": "[9.87209958e+21]"
+        },
+        {
+            "name": "random float 27",
+            "export_json": "[8.12820338e+21]",
+            "canonical": "[8.12820338e+21]",
+            "canonical_byte_ordered": "[8.12820338e+21]"
+        },
+        {
+            "name": "random float 28",
+            "export_json": "[-4.94105814e-19]",
+            "canonical": "[-4.94105814e-19]",
+            "canonical_byte_ordered": "[-4.94105814e-19]"
+        },
+        {
+            "name": "random float 29",
+            "export_json": "[348140552000]",
+            "canonical": "[348140552000]",
+            "canonical_byte_ordered": "[348140552000]"
+        },
+        {
+            "name": "random float 30",
+            "export_json": "[-5954357.9799999995]",
+            "canonical": "[-5954357.9799999995]",
+            "canonical_byte_ordered": "[-5954357.9799999995]"
+        },
+        {
+            "name": "random float 31",
+            "export_json": "[-6.66361527e-13]",
+            "canonical": "[-6.66361527e-13]",
+            "canonical_byte_ordered": "[-6.66361527e-13]"
+        },
+        {
+            "name": "random float 32",
+            "export_json": "[8.21701187e+33]",
+            "canonical": "[8.21701187e+33]",
+            "canonical_byte_ordered": "[8.21701187e+33]"
+        },
+        {
+            "name": "random float 33",
+            "export_json": "[30523.108399999997]",
+            "canonical": "[30523.108399999997]",
+            "canonical_byte_ordered": "[30523.108399999997]"
+        },
+        {
+            "name": "random float 34",
+            "export_json": "[192904062]",
+            "canonical": "[192904062]",
+            "canonical_byte_ordered": "[192904062]"
+        },
+        {
+            "name": "random float 35",
+            "export_json": "[-1.30547688e+31]",
+            "canonical": "[-1.30547688e+31]",
+            "canonical_byte_ordered": "[-1.30547688e+31]"
+        },
+        {
+            "name": "random float 36",
+            "export_json": "[0.09258137770000001]",
+            "canonical": "[0.09258137770000001]",
+            "canonical_byte_ordered": "[0.09258137770000001]"
+        },
+        {
+            "name": "random float 37",
+            "export_json": "[8.3762735e-13]",
+            "canonical": "[8.3762735e-13]",
+            "canonical_byte_ordered": "[8.3762735e-13]"
+        },
+        {
+            "name": "random float 38",
+            "export_json": "[2.3056101200000003e+31]",
+            "canonical": "[2.3056101200000003e+31]",
+            "canonical_byte_ordered": "[2.3056101200000003e+31]"
+        },
+        {
+            "name": "random float 39",
+            "export_json": "[-0.82408022]",
+            "canonical": "[-0.82408022]",
+            "canonical_byte_ordered": "[-0.82408022]"
+        },
+        {
+            "name": "random float 40",
+            "export_json": "[8.20775722e-15]",
+            "canonical": "[8.20775722e-15]",
+            "canonical_byte_ordered": "[8.20775722e-15]"
+        },
+        {
+            "name": "random float 41",
+            "export_json": "[-34055217300000000]",
+            "canonical": "[-34055217300000000]",
+            "canonical_byte_ordered": "[-34055217300000000]"
+        },
+        {
+            "name": "random float 42",
+            "export_json": "[-7.13473104e+31]",
+            "canonical": "[-7.13473104e+31]",
+            "canonical_byte_ordered": "[-7.13473104e+31]"
+        },
+        {
+            "name": "random float 43",
+            "export_json": "[-5.3712550299999994e-6]",
+            "canonical": "[-5.3712550299999994e-6]",
+            "canonical_byte_ordered": "[-5.3712550299999994e-6]"
+        },
+        {
+            "name": "random float 44",
+            "export_json": "[-899764.6279999999]",
+            "canonical": "[-899764.6279999999]",
+            "canonical_byte_ordered": "[-899764.6279999999]"
+        },
+        {
+            "name": "random float 45",
+            "export_json": "[40.653371199999995]",
+            "canonical": "[40.653371199999995]",
+            "canonical_byte_ordered": "[40.653371199999995]"
+        },
+        {
+            "name": "random float 46",
+            "export_json": "[-5.1504871e-19]",
+            "canonical": "[-5.1504871e-19]",
+            "canonical_byte_ordered": "[-5.1504871e-19]"
+        },
+        {
+            "name": "random float 47",
+            "export_json": "[-6.520296129999999]",
+            "canonical": "[-6.520296129999999]",
+            "canonical_byte_ordered": "[-6.520296129999999]"
+        },
+        {
+            "name": "random float 48",
+            "export_json": "[8591443000000000000]",
+            "canonical": "[8591443000000000000]",
+            "canonical_byte_ordered": "[8591443000000000000]"
+        },
+        {
+            "name": "random float 49",
+            "export_json": "[-7.96170442]",
+            "canonical": "[-7.96170442]",
+            "canonical_byte_ordered": "[-7.96170442]"
+        },
+        {
+            "name": "random float 50",
+            "export_json": "[1.3101433300000001e+31]",
+            "canonical": "[1.3101433300000001e+31]",
+            "canonical_byte_ordered": "[1.3101433300000001e+31]"
+        },
+        {
+            "name": "random float 51",
+            "export_json": "[7.949897319999999e+31]",
+            "canonical": "[7.949897319999999e+31]",
+            "canonical_byte_ordered": "[7.949897319999999e+31]"
+        },
+        {
+            "name": "random float 52",
+            "export_json": "[-9.6618616e+28]",
+            "canonical": "[-9.6618616e+28]",
+            "canonical_byte_ordered": "[-9.6618616e+28]"
+        },
+        {
+            "name": "random float 53",
+            "export_json": "[-1.5225039099999999e+35]",
+            "canonical": "[-1.5225039099999999e+35]",
+            "canonical_byte_ordered": "[-1.5225039099999999e+35]"
+        },
+        {
+            "name": "random float 54",
+            "export_json": "[-2.368651e+32]",
+            "canonical": "[-2.368651e+32]",
+            "canonical_byte_ordered": "[-2.368651e+32]"
+        },
+        {
+            "name": "random float 55",
+            "export_json": "[26661512400]",
+            "canonical": "[26661512400]",
+            "canonical_byte_ordered": "[26661512400]"
+        },
+        {
+            "name": "random float 56",
+            "export_json": "[9764865100]",
+            "canonical": "[9764865100]",
+            "canonical_byte_ordered": "[9764865100]"
+        },
+        {
+            "name": "random float 57",
+            "export_json": "[8.675235999999999e-11]",
+            "canonical": "[8.675235999999999e-11]",
+            "canonical_byte_ordered": "[8.675235999999999e-11]"
+        },
+        {
+            "name": "random float 58",
+            "export_json": "[3.82679e+30]",
+            "canonical": "[3.82679e+30]",
+            "canonical_byte_ordered": "[3.82679e+30]"
+        },
+        {
+            "name": "random float 59",
+            "export_json": "[1756053780000]",
+            "canonical": "[1756053780000]",
+            "canonical_byte_ordered": "[1756053780000]"
+        },
+        {
+            "name": "random float 60",
+            "export_json": "[-65823642000000.01]",
+            "canonical": "[-65823642000000.01]",
+            "canonical_byte_ordered": "[-65823642000000.01]"
+        },
+        {
+            "name": "random float 61",
+            "export_json": "[-84255001.7]",
+            "canonical": "[-84255001.7]",
+            "canonical_byte_ordered": "[-84255001.7]"
+        },
+        {
+            "name": "random float 62",
+            "export_json": "[-4.07501026e+38]",
+            "canonical": "[-4.07501026e+38]",
+            "canonical_byte_ordered": "[-4.07501026e+38]"
+        },
+        {
+            "name": "random float 63",
+            "export_json": "[8.29405622e+26]",
+            "canonical": "[8.29405622e+26]",
+            "canonical_byte_ordered": "[8.29405622e+26]"
+        },
+        {
+            "name": "random float 64",
+            "export_json": "[-2.12177096e-22]",
+            "canonical": "[-2.12177096e-22]",
+            "canonical_byte_ordered": "[-2.12177096e-22]"
+        },
+        {
+            "name": "random float 65",
+            "export_json": "[-5.1832531999999996e-5]",
+            "canonical": "[-5.1832531999999996e-5]",
+            "canonical_byte_ordered": "[-5.1832531999999996e-5]"
+        },
+        {
+            "name": "random float 66",
+            "export_json": "[9.51864123e+20]",
+            "canonical": "[9.51864123e+20]",
+            "canonical_byte_ordered": "[9.51864123e+20]"
+        },
+        {
+            "name": "random float 67",
+            "export_json": "[0.000644848556]",
+            "canonical": "[0.000644848556]",
+            "canonical_byte_ordered": "[0.000644848556]"
+        },
+        {
+            "name": "random float 68",
+            "export_json": "[53864143700000]",
+            "canonical": "[53864143700000]",
+            "canonical_byte_ordered": "[53864143700000]"
+        },
+        {
+            "name": "random float 69",
+            "export_json": "[-115044103000]",
+            "canonical": "[-115044103000]",
+            "canonical_byte_ordered": "[-115044103000]"
+        },
+        {
+            "name": "random float 70",
+            "export_json": "[1.2397278e-24]",
+            "canonical": "[1.2397278e-24]",
+            "canonical_byte_ordered": "[1.2397278e-24]"
+        },
+        {
+            "name": "random float 71",
+            "export_json": "[-7.89968663e+34]",
+            "canonical": "[-7.89968663e+34]",
+            "canonical_byte_ordered": "[-7.89968663e+34]"
+        },
+        {
+            "name": "random float 72",
+            "export_json": "[-1.10940209e-11]",
+            "canonical": "[-1.10940209e-11]",
+            "canonical_byte_ordered": "[-1.10940209e-11]"
+        },
+        {
+            "name": "random float 73",
+            "export_json": "[-6.297672670000001e+34]",
+            "canonical": "[-6.297672670000001e+34]",
+            "canonical_byte_ordered": "[-6.297672670000001e+34]"
+        },
+        {
+            "name": "random float 74",
+            "export_json": "[-6.594094929999999e+18]",
+            "canonical": "[-6594094929999998976]",
+            "canonical_byte_ordered": "[-6594094929999998976]"
+        },
+        {
+            "name": "random float 75",
+            "export_json": "[-9.97802366e+28]",
+            "canonical": "[-9.97802366e+28]",
+            "canonical_byte_ordered": "[-9.97802366e+28]"
+        },
+        {
+            "name": "random float 76",
+            "export_json": "[3.8968619000000004e-8]",
+            "canonical": "[3.8968619000000004e-8]",
+            "canonical_byte_ordered": "[3.8968619000000004e-8]"
+        },
+        {
+            "name": "random float 77",
+            "export_json": "[4884.40578]",
+            "canonical": "[4884.40578]",
+            "canonical_byte_ordered": "[4884.40578]"
+        },
+        {
+            "name": "random float 78",
+            "export_json": "[-8.26606774]",
+            "canonical": "[-8.26606774]",
+            "canonical_byte_ordered": "[-8.26606774]"
+        },
+        {
+            "name": "random float 79",
+            "export_json": "[5.948144630000001e-18]",
+            "canonical": "[5.948144630000001e-18]",
+            "canonical_byte_ordered": "[5.948144630000001e-18]"
+        },
+        {
+            "name": "random float 80",
+            "export_json": "[8.50843579e-14]",
+            "canonical": "[8.50843579e-14]",
+            "canonical_byte_ordered": "[8.50843579e-14]"
+        },
+        {
+            "name": "random float 81",
+            "export_json": "[-5.91542534e-15]",
+            "canonical": "[-5.91542534e-15]",
+            "canonical_byte_ordered": "[-5.91542534e-15]"
+        },
+        {
+            "name": "random float 82",
+            "export_json": "[7.20083273]",
+            "canonical": "[7.20083273]",
+            "canonical_byte_ordered": "[7.20083273]"
+        },
+        {
+            "name": "random float 83",
+            "export_json": "[7.98304811e+23]",
+            "canonical": "[7.98304811e+23]",
+            "canonical_byte_ordered": "[7.98304811e+23]"
+        },
+        {
+            "name": "random float 84",
+            "export_json": "[2.9483496399999998e+32]",
+            "canonical": "[2.9483496399999998e+32]",
+            "canonical_byte_ordered": "[2.9483496399999998e+32]"
+        },
+        {
+            "name": "random float 85",
+            "export_json": "[-3.2045293999999997e-16]",
+            "canonical": "[-3.2045293999999997e-16]",
+            "canonical_byte_ordered": "[-3.2045293999999997e-16]"
+        },
+        {
+            "name": "random float 86",
+            "export_json": "[-5.315834280000001e-19]",
+            "canonical": "[-5.315834280000001e-19]",
+            "canonical_byte_ordered": "[-5.315834280000001e-19]"
+        },
+        {
+            "name": "random float 87",
+            "export_json": "[7.003676599999999e-8]",
+            "canonical": "[7.003676599999999e-8]",
+            "canonical_byte_ordered": "[7.003676599999999e-8]"
+        },
+        {
+            "name": "random float 88",
+            "export_json": "[4.3601430599999997e+24]",
+            "canonical": "[4.3601430599999997e+24]",
+            "canonical_byte_ordered": "[4.3601430599999997e+24]"
+        },
+        {
+            "name": "random float 89",
+            "export_json": "[-8.13115434e+33]",
+            "canonical": "[-8.13115434e+33]",
+            "canonical_byte_ordered": "[-8.13115434e+33]"
+        },
+        {
+            "name": "random float 90",
+            "export_json": "[-2.31560325e+23]",
+            "canonical": "[-2.31560325e+23]",
+            "canonical_byte_ordered": "[-2.31560325e+23]"
+        },
+        {
+            "name": "random float 91",
+            "export_json": "[1.0488464100000002e+26]",
+            "canonical": "[1.0488464100000002e+26]",
+            "canonical_byte_ordered": "[1.0488464100000002e+26]"
+        },
+        {
+            "name": "random float 92",
+            "export_json": "[2.6202988800000003e+32]",
+            "canonical": "[2.6202988800000003e+32]",
+            "canonical_byte_ordered": "[2.6202988800000003e+32]"
+        },
+        {
+            "name": "random float 93",
+            "export_json": "[22289178.8]",
+            "canonical": "[22289178.8]",
+            "canonical_byte_ordered": "[22289178.8]"
+        },
+        {
+            "name": "random float 94",
+            "export_json": "[3.4871689999999995e-26]",
+            "canonical": "[3.4871689999999995e-26]",
+            "canonical_byte_ordered": "[3.4871689999999995e-26]"
+        },
+        {
+            "name": "random float 95",
+            "export_json": "[6.81802473e+22]",
+            "canonical": "[6.81802473e+22]",
+            "canonical_byte_ordered": "[6.81802473e+22]"
+        },
+        {
+            "name": "random float 96",
+            "export_json": "[-6.953818250000001e-23]",
+            "canonical": "[-6.953818250000001e-23]",
+            "canonical_byte_ordered": "[-6.953818250000001e-23]"
+        },
+        {
+            "name": "random float 97",
+            "export_json": "[1.63106951e+37]",
+            "canonical": "[1.63106951e+37]",
+            "canonical_byte_ordered": "[1.63106951e+37]"
+        },
+        {
+            "name": "random float 98",
+            "export_json": "[-4.92581487e+18]",
+            "canonical": "[-4925814870000000000]",
+            "canonical_byte_ordered": "[-4925814870000000000]"
+        },
+        {
+            "name": "random float 99",
+            "export_json": "[-5.06140802e-14]",
+            "canonical": "[-5.06140802e-14]",
+            "canonical_byte_ordered": "[-5.06140802e-14]"
+        },
+        {
+            "name": "random float 100",
+            "export_json": "[1.6496018499999998e+29]",
+            "canonical": "[1.6496018499999998e+29]",
+            "canonical_byte_ordered": "[1.6496018499999998e+29]"
+        },
+        {
+            "name": "random float 101",
+            "export_json": "[29945.6024]",
+            "canonical": "[29945.6024]",
+            "canonical_byte_ordered": "[29945.6024]"
+        },
+        {
+            "name": "random float 102",
+            "export_json": "[-6051.37384]",
+            "canonical": "[-6051.37384]",
+            "canonical_byte_ordered": "[-6051.37384]"
+        },
+        {
+            "name": "random float 103",
+            "export_json": "[-0.00732999208]",
+            "canonical": "[-0.00732999208]",
+            "canonical_byte_ordered": "[-0.00732999208]"
+        },
+        {
+            "name": "random float 104",
+            "export_json": "[5.1564326299999996e-15]",
+            "canonical": "[5.1564326299999996e-15]",
+            "canonical_byte_ordered": "[5.1564326299999996e-15]"
+        },
+        {
+            "name": "random float 105",
+            "export_json": "[-6.8603677e+23]",
+            "canonical": "[-6.8603677e+23]",
+            "canonical_byte_ordered": "[-6.8603677e+23]"
+        },
+        {
+            "name": "random float 106",
+            "export_json": "[-4.4837315399999994e+32]",
+            "canonical": "[-4.4837315399999994e+32]",
+            "canonical_byte_ordered": "[-4.4837315399999994e+32]"
+        },
+        {
+            "name": "random float 107",
+            "export_json": "[4.07858033e-14]",
+            "canonical": "[4.07858033e-14]",
+            "canonical_byte_ordered": "[4.07858033e-14]"
+        },
+        {
+            "name": "random float 108",
+            "export_json": "[963.100676]",
+            "canonical": "[963.100676]",
+            "canonical_byte_ordered": "[963.100676]"
+        },
+        {
+            "name": "random float 109",
+            "export_json": "[-6.28051827e+28]",
+            "canonical": "[-6.28051827e+28]",
+            "canonical_byte_ordered": "[-6.28051827e+28]"
+        },
+        {
+            "name": "random float 110",
+            "export_json": "[4.2821747300000003e-10]",
+            "canonical": "[4.2821747300000003e-10]",
+            "canonical_byte_ordered": "[4.2821747300000003e-10]"
+        },
+        {
+            "name": "random float 111",
+            "export_json": "[-5.054100320000001e-13]",
+            "canonical": "[-5.054100320000001e-13]",
+            "canonical_byte_ordered": "[-5.054100320000001e-13]"
+        },
+        {
+            "name": "random float 112",
+            "export_json": "[191549485000000]",
+            "canonical": "[191549485000000]",
+            "canonical_byte_ordered": "[191549485000000]"
+        },
+        {
+            "name": "random float 113",
+            "export_json": "[-1.80155504e-9]",
+            "canonical": "[-1.80155504e-9]",
+            "canonical_byte_ordered": "[-1.80155504e-9]"
+        },
+        {
+            "name": "random float 114",
+            "export_json": "[-33957432700000000]",
+            "canonical": "[-33957432700000000]",
+            "canonical_byte_ordered": "[-33957432700000000]"
+        },
+        {
+            "name": "random float 115",
+            "export_json": "[-1.3226573800000002e+33]",
+            "canonical": "[-1.3226573800000002e+33]",
+            "canonical_byte_ordered": "[-1.3226573800000002e+33]"
+        },
+        {
+            "name": "random float 116",
+            "export_json": "[7516875000]",
+            "canonical": "[7516875000]",
+            "canonical_byte_ordered": "[7516875000]"
+        },
+        {
+            "name": "random float 117",
+            "export_json": "[8.18991826e-29]",
+            "canonical": "[8.18991826e-29]",
+            "canonical_byte_ordered": "[8.18991826e-29]"
+        },
+        {
+            "name": "random float 118",
+            "export_json": "[4.11452945]",
+            "canonical": "[4.11452945]",
+            "canonical_byte_ordered": "[4.11452945]"
+        },
+        {
+            "name": "random float 119",
+            "export_json": "[2.5356933300000003e-16]",
+            "canonical": "[2.5356933300000003e-16]",
+            "canonical_byte_ordered": "[2.5356933300000003e-16]"
+        },
+        {
+            "name": "random float 120",
+            "export_json": "[67210364100000]",
+            "canonical": "[67210364100000]",
+            "canonical_byte_ordered": "[67210364100000]"
+        },
+        {
+            "name": "random float 121",
+            "export_json": "[2935318820]",
+            "canonical": "[2935318820]",
+            "canonical_byte_ordered": "[2935318820]"
+        },
+        {
+            "name": "random float 122",
+            "export_json": "[-8.58160498e+27]",
+            "canonical": "[-8.58160498e+27]",
+            "canonical_byte_ordered": "[-8.58160498e+27]"
+        },
+        {
+            "name": "random float 123",
+            "export_json": "[2.09294913e-16]",
+            "canonical": "[2.09294913e-16]",
+            "canonical_byte_ordered": "[2.09294913e-16]"
+        },
+        {
+            "name": "random float 124",
+            "export_json": "[-3.13299039e+31]",
+            "canonical": "[-3.13299039e+31]",
+            "canonical_byte_ordered": "[-3.13299039e+31]"
+        },
+        {
+            "name": "random float 125",
+            "export_json": "[9.35881165e+32]",
+            "canonical": "[9.35881165e+32]",
+            "canonical_byte_ordered": "[9.35881165e+32]"
+        },
+        {
+            "name": "random float 126",
+            "export_json": "[7385300140000.001]",
+            "canonical": "[7385300140000.001]",
+            "canonical_byte_ordered": "[7385300140000.001]"
+        },
+        {
+            "name": "random float 127",
+            "export_json": "[-6.61958863e+25]",
+            "canonical": "[-6.61958863e+25]",
+            "canonical_byte_ordered": "[-6.61958863e+25]"
+        },
+        {
+            "name": "random float 128",
+            "export_json": "[8.58876131e+28]",
+            "canonical": "[8.58876131e+28]",
+            "canonical_byte_ordered": "[8.58876131e+28]"
+        },
+        {
+            "name": "random float 129",
+            "export_json": "[-7.716013719999999e+36]",
+            "canonical": "[-7.716013719999999e+36]",
+            "canonical_byte_ordered": "[-7.716013719999999e+36]"
+        },
+        {
+            "name": "random float 130",
+            "export_json": "[3.3113122e+19]",
+            "canonical": "[3.3113122e+19]",
+            "canonical_byte_ordered": "[3.3113122e+19]"
+        },
+        {
+            "name": "random float 131",
+            "export_json": "[-6.691367460000001e-12]",
+            "canonical": "[-6.691367460000001e-12]",
+            "canonical_byte_ordered": "[-6.691367460000001e-12]"
+        },
+        {
+            "name": "random float 132",
+            "export_json": "[-4.8781020000000005e-8]",
+            "canonical": "[-4.8781020000000005e-8]",
+            "canonical_byte_ordered": "[-4.8781020000000005e-8]"
+        },
+        {
+            "name": "random float 133",
+            "export_json": "[-660112723000]",
+            "canonical": "[-660112723000]",
+            "canonical_byte_ordered": "[-660112723000]"
+        },
+        {
+            "name": "random float 134",
+            "export_json": "[-3.645104e+34]",
+            "canonical": "[-3.645104e+34]",
+            "canonical_byte_ordered": "[-3.645104e+34]"
+        },
+        {
+            "name": "random float 135",
+            "export_json": "[2.82329728e+30]",
+            "canonical": "[2.82329728e+30]",
+            "canonical_byte_ordered": "[2.82329728e+30]"
+        },
+        {
+            "name": "random float 136",
+            "export_json": "[-6.4699749000000004e-15]",
+            "canonical": "[-6.4699749000000004e-15]",
+            "canonical_byte_ordered": "[-6.4699749000000004e-15]"
+        },
+        {
+            "name": "random float 137",
+            "export_json": "[-4996705520000]",
+            "canonical": "[-4996705520000]",
+            "canonical_byte_ordered": "[-4996705520000]"
+        },
+        {
+            "name": "random float 138",
+            "export_json": "[5.9099528e-28]",
+            "canonical": "[5.9099528e-28]",
+            "canonical_byte_ordered": "[5.9099528e-28]"
+        },
+        {
+            "name": "random float 139",
+            "export_json": "[82635405.6]",
+            "canonical": "[82635405.6]",
+            "canonical_byte_ordered": "[82635405.6]"
+        },
+        {
+            "name": "random float 140",
+            "export_json": "[-4148184710000.0005]",
+            "canonical": "[-4148184710000.0005]",
+            "canonical_byte_ordered": "[-4148184710000.0005]"
+        },
+        {
+            "name": "random float 141",
+            "export_json": "[-9664895610]",
+            "canonical": "[-9664895610]",
+            "canonical_byte_ordered": "[-9664895610]"
+        },
+        {
+            "name": "random float 142",
+            "export_json": "[9.660402759999999e-21]",
+            "canonical": "[9.660402759999999e-21]",
+            "canonical_byte_ordered": "[9.660402759999999e-21]"
+        },
+        {
+            "name": "random float 143",
+            "export_json": "[5.831104709999999e-17]",
+            "canonical": "[5.831104709999999e-17]",
+            "canonical_byte_ordered": "[5.831104709999999e-17]"
+        },
+        {
+            "name": "random float 144",
+            "export_json": "[6.23755584e-13]",
+            "canonical": "[6.23755584e-13]",
+            "canonical_byte_ordered": "[6.23755584e-13]"
+        },
+        {
+            "name": "random float 145",
+            "export_json": "[-2.3394736399999996e+34]",
+            "canonical": "[-2.3394736399999996e+34]",
+            "canonical_byte_ordered": "[-2.3394736399999996e+34]"
+        },
+        {
+            "name": "random float 146",
+            "export_json": "[2.13843453e+31]",
+            "canonical": "[2.13843453e+31]",
+            "canonical_byte_ordered": "[2.13843453e+31]"
+        },
+        {
+            "name": "random float 147",
+            "export_json": "[-2.2027722999999997e-30]",
+            "canonical": "[-2.2027722999999997e-30]",
+            "canonical_byte_ordered": "[-2.2027722999999997e-30]"
+        },
+        {
+            "name": "random float 148",
+            "export_json": "[83720.59890000001]",
+            "canonical": "[83720.59890000001]",
+            "canonical_byte_ordered": "[83720.59890000001]"
+        },
+        {
+            "name": "random float 149",
+            "export_json": "[-1.5576092700000001e+31]",
+            "canonical": "[-1.5576092700000001e+31]",
+            "canonical_byte_ordered": "[-1.5576092700000001e+31]"
+        },
+        {
+            "name": "random float 150",
+            "export_json": "[4.47741687e+22]",
+            "canonical": "[4.47741687e+22]",
+            "canonical_byte_ordered": "[4.47741687e+22]"
+        },
+        {
+            "name": "random float 151",
+            "export_json": "[-8.786159730000001e-13]",
+            "canonical": "[-8.786159730000001e-13]",
+            "canonical_byte_ordered": "[-8.786159730000001e-13]"
+        },
+        {
+            "name": "random float 152",
+            "export_json": "[113224730000000]",
+            "canonical": "[113224730000000]",
+            "canonical_byte_ordered": "[113224730000000]"
+        },
+        {
+            "name": "random float 153",
+            "export_json": "[804901797000000]",
+            "canonical": "[804901797000000]",
+            "canonical_byte_ordered": "[804901797000000]"
+        },
+        {
+            "name": "random float 154",
+            "export_json": "[-7.222539420000001e+25]",
+            "canonical": "[-7.222539420000001e+25]",
+            "canonical_byte_ordered": "[-7.222539420000001e+25]"
+        },
+        {
+            "name": "random float 155",
+            "export_json": "[-2.07875044e+20]",
+            "canonical": "[-2.07875044e+20]",
+            "canonical_byte_ordered": "[-2.07875044e+20]"
+        },
+        {
+            "name": "random float 156",
+            "export_json": "[-1.86092412e+18]",
+            "canonical": "[-1860924120000000000]",
+            "canonical_byte_ordered": "[-1860924120000000000]"
+        },
+        {
+            "name": "random float 157",
+            "export_json": "[-593313.51]",
+            "canonical": "[-593313.51]",
+            "canonical_byte_ordered": "[-593313.51]"
+        },
+        {
+            "name": "random float 158",
+            "export_json": "[-6.824634669999999e+20]",
+            "canonical": "[-6.824634669999999e+20]",
+            "canonical_byte_ordered": "[-6.824634669999999e+20]"
+        },
+        {
+            "name": "random float 159",
+            "export_json": "[-8.048132160000001e+29]",
+            "canonical": "[-8.048132160000001e+29]",
+            "canonical_byte_ordered": "[-8.048132160000001e+29]"
+        },
+        {
+            "name": "random float 160",
+            "export_json": "[-2.6283268900000006e-10]",
+            "canonical": "[-2.6283268900000006e-10]",
+            "canonical_byte_ordered": "[-2.6283268900000006e-10]"
+        },
+        {
+            "name": "random float 161",
+            "export_json": "[-358097.21700000006]",
+            "canonical": "[-358097.21700000006]",
+            "canonical_byte_ordered": "[-358097.21700000006]"
+        },
+        {
+            "name": "random float 162",
+            "export_json": "[7.81375768e-18]",
+            "canonical": "[7.81375768e-18]",
+            "canonical_byte_ordered": "[7.81375768e-18]"
+        },
+        {
+            "name": "random float 163",
+            "export_json": "[4.988863710000001e+27]",
+            "canonical": "[4.988863710000001e+27]",
+            "canonical_byte_ordered": "[4.988863710000001e+27]"
+        },
+        {
+            "name": "random float 164",
+            "export_json": "[-9.088546159999999e-27]",
+            "canonical": "[-9.088546159999999e-27]",
+            "canonical_byte_ordered": "[-9.088546159999999e-27]"
+        },
+        {
+            "name": "random float 165",
+            "export_json": "[8.051636779999999e-20]",
+            "canonical": "[8.051636779999999e-20]",
+            "canonical_byte_ordered": "[8.051636779999999e-20]"
+        },
+        {
+            "name": "random float 166",
+            "export_json": "[0.00035371538799999996]",
+            "canonical": "[0.00035371538799999996]",
+            "canonical_byte_ordered": "[0.00035371538799999996]"
+        },
+        {
+            "name": "random float 167",
+            "export_json": "[8.63807279e+19]",
+            "canonical": "[8.63807279e+19]",
+            "canonical_byte_ordered": "[8.63807279e+19]"
+        },
+        {
+            "name": "random float 168",
+            "export_json": "[-3.6898026e+19]",
+            "canonical": "[-3.6898026e+19]",
+            "canonical_byte_ordered": "[-3.6898026e+19]"
+        },
+        {
+            "name": "random float 169",
+            "export_json": "[6.85270484e+24]",
+            "canonical": "[6.85270484e+24]",
+            "canonical_byte_ordered": "[6.85270484e+24]"
+        },
+        {
+            "name": "random float 170",
+            "export_json": "[3.15218794e+37]",
+            "canonical": "[3.15218794e+37]",
+            "canonical_byte_ordered": "[3.15218794e+37]"
+        },
+        {
+            "name": "random float 171",
+            "export_json": "[-7.71462418e-21]",
+            "canonical": "[-7.71462418e-21]",
+            "canonical_byte_ordered": "[-7.71462418e-21]"
+        },
+        {
+            "name": "random float 172",
+            "export_json": "[2.2638071899999998e+19]",
+            "canonical": "[2.2638071899999998e+19]",
+            "canonical_byte_ordered": "[2.2638071899999998e+19]"
+        },
+        {
+            "name": "random float 173",
+            "export_json": "[-4.43978038]",
+            "canonical": "[-4.43978038]",
+            "canonical_byte_ordered": "[-4.43978038]"
+        },
+        {
+            "name": "random float 174",
+            "export_json": "[5.3141079e+28]",
+            "canonical": "[5.3141079e+28]",
+            "canonical_byte_ordered": "[5.3141079e+28]"
+        },
+        {
+            "name": "random float 175",
+            "export_json": "[2.63810821e-5]",
+            "canonical": "[2.63810821e-5]",
+            "canonical_byte_ordered": "[2.63810821e-5]"
+        },
+        {
+            "name": "random float 176",
+            "export_json": "[190.58240100000003]",
+            "canonical": "[190.58240100000003]",
+            "canonical_byte_ordered": "[190.58240100000003]"
+        },
+        {
+            "name": "random float 177",
+            "export_json": "[6.099767559999999e+30]",
+            "canonical": "[6.099767559999999e+30]",
+            "canonical_byte_ordered": "[6.099767559999999e+30]"
+        },
+        {
+            "name": "random float 178",
+            "export_json": "[66441515200]",
+            "canonical": "[66441515200]",
+            "canonical_byte_ordered": "[66441515200]"
+        },
+        {
+            "name": "random float 179",
+            "export_json": "[-8.0964116e-20]",
+            "canonical": "[-8.0964116e-20]",
+            "canonical_byte_ordered": "[-8.0964116e-20]"
+        },
+        {
+            "name": "random float 180",
+            "export_json": "[0.00924790513]",
+            "canonical": "[0.00924790513]",
+            "canonical_byte_ordered": "[0.00924790513]"
+        },
+        {
+            "name": "random float 181",
+            "export_json": "[4397636030000000]",
+            "canonical": "[4397636030000000]",
+            "canonical_byte_ordered": "[4397636030000000]"
+        },
+        {
+            "name": "random float 182",
+            "export_json": "[-6.71212535e-30]",
+            "canonical": "[-6.71212535e-30]",
+            "canonical_byte_ordered": "[-6.71212535e-30]"
+        },
+        {
+            "name": "random float 183",
+            "export_json": "[-2.98951522e-21]",
+            "canonical": "[-2.98951522e-21]",
+            "canonical_byte_ordered": "[-2.98951522e-21]"
+        },
+        {
+            "name": "random float 184",
+            "export_json": "[-0.42305058]",
+            "canonical": "[-0.42305058]",
+            "canonical_byte_ordered": "[-0.42305058]"
+        },
+        {
+            "name": "random float 185",
+            "export_json": "[9.629502979999998e+24]",
+            "canonical": "[9.629502979999998e+24]",
+            "canonical_byte_ordered": "[9.629502979999998e+24]"
+        },
+        {
+            "name": "random float 186",
+            "export_json": "[5.649440039999999e-22]",
+            "canonical": "[5.649440039999999e-22]",
+            "canonical_byte_ordered": "[5.649440039999999e-22]"
+        },
+        {
+            "name": "random float 187",
+            "export_json": "[0.00888361172]",
+            "canonical": "[0.00888361172]",
+            "canonical_byte_ordered": "[0.00888361172]"
+        },
+        {
+            "name": "random float 188",
+            "export_json": "[7.40729879e+23]",
+            "canonical": "[7.40729879e+23]",
+            "canonical_byte_ordered": "[7.40729879e+23]"
+        },
+        {
+            "name": "random float 189",
+            "export_json": "[1.31610022e-9]",
+            "canonical": "[1.31610022e-9]",
+            "canonical_byte_ordered": "[1.31610022e-9]"
+        },
+        {
+            "name": "random float 190",
+            "export_json": "[-0.09290594899999999]",
+            "canonical": "[-0.09290594899999999]",
+            "canonical_byte_ordered": "[-0.09290594899999999]"
+        },
+        {
+            "name": "random float 191",
+            "export_json": "[43699432.9]",
+            "canonical": "[43699432.9]",
+            "canonical_byte_ordered": "[43699432.9]"
+        },
+        {
+            "name": "random float 192",
+            "export_json": "[0.0291369729]",
+            "canonical": "[0.0291369729]",
+            "canonical_byte_ordered": "[0.0291369729]"
+        },
+        {
+            "name": "random float 193",
+            "export_json": "[-6.81776942e+33]",
+            "canonical": "[-6.81776942e+33]",
+            "canonical_byte_ordered": "[-6.81776942e+33]"
+        },
+        {
+            "name": "random float 194",
+            "export_json": "[14886485.700000001]",
+            "canonical": "[14886485.700000001]",
+            "canonical_byte_ordered": "[14886485.700000001]"
+        },
+        {
+            "name": "random float 195",
+            "export_json": "[6.39767035e+29]",
+            "canonical": "[6.39767035e+29]",
+            "canonical_byte_ordered": "[6.39767035e+29]"
+        },
+        {
+            "name": "random float 196",
+            "export_json": "[3337904000]",
+            "canonical": "[3337904000]",
+            "canonical_byte_ordered": "[3337904000]"
+        },
+        {
+            "name": "random float 197",
+            "export_json": "[4.08849741e+23]",
+            "canonical": "[4.08849741e+23]",
+            "canonical_byte_ordered": "[4.08849741e+23]"
+        },
+        {
+            "name": "random float 198",
+            "export_json": "[-4.00392596e-7]",
+            "canonical": "[-4.00392596e-7]",
+            "canonical_byte_ordered": "[-4.00392596e-7]"
+        },
+        {
+            "name": "random float 199",
+            "export_json": "[-4.9709290800000004e-27]",
+            "canonical": "[-4.9709290800000004e-27]",
+            "canonical_byte_ordered": "[-4.9709290800000004e-27]"
+        },
+        {
+            "name": "random key set 0",
+            "export_json": "{\"6824\":0,\"ZZ\\u65e5a\":1,\"-720\":2,\"-205\":3,\"8048\":4}",
+            "canonical": "{\"-720\":2,\"-205\":3,\"6824\":0,\"8048\":4,\"ZZ\u65e5a\":1}",
+            "canonical_byte_ordered": "{\"-205\":3,\"-720\":2,\"6824\":0,\"8048\":4,\"ZZ\u65e5a\":1}"
+        },
+        {
+            "name": "random key set 1",
+            "export_json": "{\"\\u00e9-\\u00df\":0,\"bZbZ\":1,\"Z \\u00dfb\\u00e9\":2,\"Z\":3,\"33371\":4}",
+            "canonical": "{\"33371\":4,\"Z\":3,\"Z \u00dfb\u00e9\":2,\"bZbZ\":1,\"\u00e9-\u00df\":0}",
+            "canonical_byte_ordered": "{\"33371\":4,\"Z\":3,\"Z \u00dfb\u00e9\":2,\"bZbZ\":1,\"\u00e9-\u00df\":0}"
+        },
+        {
+            "name": "random key set 2",
+            "export_json": "{\"72942\":0,\"b\":1,\"20681\":2,\"b\\u00e9a\\u65e5\":3,\"53978\":4,\"Z_Z\":5,\"2138\":6}",
+            "canonical": "{\"2138\":6,\"20681\":2,\"53978\":4,\"72942\":0,\"Z_Z\":5,\"b\":1,\"b\u00e9a\u65e5\":3}",
+            "canonical_byte_ordered": "{\"20681\":2,\"2138\":6,\"53978\":4,\"72942\":0,\"Z_Z\":5,\"b\":1,\"b\u00e9a\u65e5\":3}"
+        },
+        {
+            "name": "random key set 3",
+            "export_json": "{\"37773\":0,\"80166\":1,\"\\u00e9\\u00df_\\u00df\":2,\"a \\u00df\":3,\"85741\":4,\"a\\u00df\":5,\"Z__\":6,\"Z\\ud83d\\ude00\\ud83d\\ude00Z\":7,\"aZ\\ud83d\\ude00\":8,\"99804\":9}",
+            "canonical": "{\"37773\":0,\"80166\":1,\"85741\":4,\"99804\":9,\"Z__\":6,\"Z\ud83d\ude00\ud83d\ude00Z\":7,\"a \u00df\":3,\"aZ\ud83d\ude00\":8,\"a\u00df\":5,\"\u00e9\u00df_\u00df\":2}",
+            "canonical_byte_ordered": "{\"37773\":0,\"80166\":1,\"85741\":4,\"99804\":9,\"Z__\":6,\"Z\ud83d\ude00\ud83d\ude00Z\":7,\"a \u00df\":3,\"aZ\ud83d\ude00\":8,\"a\u00df\":5,\"\u00e9\u00df_\u00df\":2}"
+        },
+        {
+            "name": "random key set 4",
+            "export_json": "{\"Z_\\u65e5\":0,\"a\":1,\"ZZ\":2,\"aab\":3,\"Z\\u65e5\":4,\"b \\u65e5\":5,\"Z\\u00e9\":6}",
+            "canonical": "{\"ZZ\":2,\"Z_\u65e5\":0,\"Z\u00e9\":6,\"Z\u65e5\":4,\"a\":1,\"aab\":3,\"b \u65e5\":5}",
+            "canonical_byte_ordered": "{\"ZZ\":2,\"Z_\u65e5\":0,\"Z\u00e9\":6,\"Z\u65e5\":4,\"a\":1,\"aab\":3,\"b \u65e5\":5}"
+        },
+        {
+            "name": "random key set 5",
+            "export_json": "{\"a-\\ud83d\\ude00\\ud83d\\ude00\":0,\"\\u00e9\\u65e5\\u00e9\\u65e5\":1,\"ZZZb\":2,\"a \\u00e9 \":3,\"Z \\ud83d\\ude00 _\":4,\"aba\":5}",
+            "canonical": "{\"Z \ud83d\ude00 _\":4,\"ZZZb\":2,\"a \u00e9 \":3,\"a-\ud83d\ude00\ud83d\ude00\":0,\"aba\":5,\"\u00e9\u65e5\u00e9\u65e5\":1}",
+            "canonical_byte_ordered": "{\"Z \ud83d\ude00 _\":4,\"ZZZb\":2,\"a \u00e9 \":3,\"a-\ud83d\ude00\ud83d\ude00\":0,\"aba\":5,\"\u00e9\u65e5\u00e9\u65e5\":1}"
+        },
+        {
+            "name": "random key set 6",
+            "export_json": "{\"39141\":0,\"Z Z\\ud83d\\ude00-\":1,\"ZZ\\u00dfb\":2,\"bZ_a\":3,\"b\\ud83d\\ude00-\":4,\"56250\":5,\"40209\":6}",
+            "canonical": "{\"39141\":0,\"40209\":6,\"56250\":5,\"Z Z\ud83d\ude00-\":1,\"ZZ\u00dfb\":2,\"bZ_a\":3,\"b\ud83d\ude00-\":4}",
+            "canonical_byte_ordered": "{\"39141\":0,\"40209\":6,\"56250\":5,\"Z Z\ud83d\ude00-\":1,\"ZZ\u00dfb\":2,\"bZ_a\":3,\"b\ud83d\ude00-\":4}"
+        },
+        {
+            "name": "random key set 7",
+            "export_json": "{\"\\u00e9\":0,\"67530\":1,\"a\\u65e5\":2,\"b\":3,\"bbb\":4,\"Z\":6}",
+            "canonical": "{\"67530\":1,\"Z\":6,\"a\u65e5\":2,\"b\":3,\"bbb\":4,\"\u00e9\":0}",
+            "canonical_byte_ordered": "{\"67530\":1,\"Z\":6,\"a\u65e5\":2,\"b\":3,\"bbb\":4,\"\u00e9\":0}"
+        },
+        {
+            "name": "random key set 8",
+            "export_json": "{\"Zab \\ud83d\\ude00\":0,\"Z\\u00dfZ\":1,\"95298\":2,\"\\u00e9\\u00df  \":3,\"aZ-\":4,\"\\u00e9\\u65e5 a\":5,\"93228\":6,\"b-_\\u00df\\u65e5\":7,\"\\u00e9a\\ud83d\\ude00b\":8}",
+            "canonical": "{\"93228\":6,\"95298\":2,\"Zab \ud83d\ude00\":0,\"Z\u00dfZ\":1,\"aZ-\":4,\"b-_\u00df\u65e5\":7,\"\u00e9a\ud83d\ude00b\":8,\"\u00e9\u00df  \":3,\"\u00e9\u65e5 a\":5}",
+            "canonical_byte_ordered": "{\"93228\":6,\"95298\":2,\"Zab \ud83d\ude00\":0,\"Z\u00dfZ\":1,\"aZ-\":4,\"b-_\u00df\u65e5\":7,\"\u00e9a\ud83d\ude00b\":8,\"\u00e9\u00df  \":3,\"\u00e9\u65e5 a\":5}"
+        },
+        {
+            "name": "random key set 9",
+            "export_json": "{\"b\":0,\"ZaZ\\u65e5_\":1,\"\\u00e9-\":3,\"a_b\":4,\"\\u00e9a\":5,\"ZZb\\u65e5\\ud83d\\ude00\":6,\"a- -a\":7,\"a\\ud83d\\ude00\":8,\"99147\":9}",
+            "canonical": "{\"99147\":9,\"ZZb\u65e5\ud83d\ude00\":6,\"ZaZ\u65e5_\":1,\"a- -a\":7,\"a_b\":4,\"a\ud83d\ude00\":8,\"b\":0,\"\u00e9-\":3,\"\u00e9a\":5}",
+            "canonical_byte_ordered": "{\"99147\":9,\"ZZb\u65e5\ud83d\ude00\":6,\"ZaZ\u65e5_\":1,\"a- -a\":7,\"a_b\":4,\"a\ud83d\ude00\":8,\"b\":0,\"\u00e9-\":3,\"\u00e9a\":5}"
+        },
+        {
+            "name": "random key set 10",
+            "export_json": "{\"42691\":0,\"aZ\":10,\"Zb\\u65e5 \\u00df\":2,\"a\":3,\"51995\":4,\"44650\":5,\"Z-\\ud83d\\ude00\\ud83d\\ude00\\u00e9\":6,\"\\u00e9aa Z\":7,\"\\u00e9\":8,\"\\u00e9\\ud83d\\ude00a\":9,\"a-\":11}",
+            "canonical": "{\"42691\":0,\"44650\":5,\"51995\":4,\"Z-\ud83d\ude00\ud83d\ude00\u00e9\":6,\"Zb\u65e5 \u00df\":2,\"a\":3,\"a-\":11,\"aZ\":10,\"\u00e9\":8,\"\u00e9aa Z\":7,\"\u00e9\ud83d\ude00a\":9}",
+            "canonical_byte_ordered": "{\"42691\":0,\"44650\":5,\"51995\":4,\"Z-\ud83d\ude00\ud83d\ude00\u00e9\":6,\"Zb\u65e5 \u00df\":2,\"a\":3,\"a-\":11,\"aZ\":10,\"\u00e9\":8,\"\u00e9aa Z\":7,\"\u00e9\ud83d\ude00a\":9}"
+        },
+        {
+            "name": "random key set 11",
+            "export_json": "{\"bbZ\\ud83d\\ude00\":0,\"3191\":1,\"\\u00e9b__ \":2}",
+            "canonical": "{\"3191\":1,\"bbZ\ud83d\ude00\":0,\"\u00e9b__ \":2}",
+            "canonical_byte_ordered": "{\"3191\":1,\"bbZ\ud83d\ude00\":0,\"\u00e9b__ \":2}"
+        },
+        {
+            "name": "random key set 12",
+            "export_json": "{\"\\u00e9__\":0,\"97893\":1}",
+            "canonical": "{\"97893\":1,\"\u00e9__\":0}",
+            "canonical_byte_ordered": "{\"97893\":1,\"\u00e9__\":0}"
+        },
+        {
+            "name": "random key set 13",
+            "export_json": "{\"b\":0,\"a a\":1,\"b\\ud83d\\ude00  \":2,\"a\\u65e5\":3,\"Z\":4,\"49939\":5,\"Za\\ud83d\\ude00-\":6}",
+            "canonical": "{\"49939\":5,\"Z\":4,\"Za\ud83d\ude00-\":6,\"a a\":1,\"a\u65e5\":3,\"b\":0,\"b\ud83d\ude00  \":2}",
+            "canonical_byte_ordered": "{\"49939\":5,\"Z\":4,\"Za\ud83d\ude00-\":6,\"a a\":1,\"a\u65e5\":3,\"b\":0,\"b\ud83d\ude00  \":2}"
+        },
+        {
+            "name": "random key set 14",
+            "export_json": "{\"a\\u00e9\\u00df-\\u00e9\":0,\"2223\":1,\"b\\u65e5\\u00e9bb\":2,\"17164\":3,\"\\u00e9\\u00e9b\":4,\"b\":10,\"73591\":6,\"73549\":7,\"a\":8,\"55260\":9}",
+            "canonical": "{\"2223\":1,\"17164\":3,\"55260\":9,\"73549\":7,\"73591\":6,\"a\":8,\"a\u00e9\u00df-\u00e9\":0,\"b\":10,\"b\u65e5\u00e9bb\":2,\"\u00e9\u00e9b\":4}",
+            "canonical_byte_ordered": "{\"17164\":3,\"2223\":1,\"55260\":9,\"73549\":7,\"73591\":6,\"a\":8,\"a\u00e9\u00df-\u00e9\":0,\"b\":10,\"b\u65e5\u00e9bb\":2,\"\u00e9\u00e9b\":4}"
+        },
+        {
+            "name": "random key set 15",
+            "export_json": "{\"98193\":0,\"\\u00e9\\u00e9a\\u00e9 \":1,\"52411\":2,\"ZZZ \\ud83d\\ude00\":3,\"a\\u65e5\\u00df\\u00df\":4}",
+            "canonical": "{\"52411\":2,\"98193\":0,\"ZZZ \ud83d\ude00\":3,\"a\u65e5\u00df\u00df\":4,\"\u00e9\u00e9a\u00e9 \":1}",
+            "canonical_byte_ordered": "{\"52411\":2,\"98193\":0,\"ZZZ \ud83d\ude00\":3,\"a\u65e5\u00df\u00df\":4,\"\u00e9\u00e9a\u00e9 \":1}"
+        },
+        {
+            "name": "random key set 16",
+            "export_json": "{\"Z\\u00e9Zba\":0,\"Zb-\\u00df\":1,\"\\u00e9aZ\\u00df\":2,\"\\u00e9\\ud83d\\ude00ab\":3,\"\\u00e9b\":4,\"\\u00e9\\u00df-\\ud83d\\ude00Z\":5,\"89878\":6}",
+            "canonical": "{\"89878\":6,\"Zb-\u00df\":1,\"Z\u00e9Zba\":0,\"\u00e9aZ\u00df\":2,\"\u00e9b\":4,\"\u00e9\u00df-\ud83d\ude00Z\":5,\"\u00e9\ud83d\ude00ab\":3}",
+            "canonical_byte_ordered": "{\"89878\":6,\"Zb-\u00df\":1,\"Z\u00e9Zba\":0,\"\u00e9aZ\u00df\":2,\"\u00e9b\":4,\"\u00e9\u00df-\ud83d\ude00Z\":5,\"\u00e9\ud83d\ude00ab\":3}"
+        },
+        {
+            "name": "random key set 17",
+            "export_json": "{\"81583\":0,\"a \":1,\"93038\":2,\"b\\u65e5\\u65e5\\ud83d\\ude00\\u65e5\":3,\"b\\u00dfa_a\":4,\"Z\":5}",
+            "canonical": "{\"81583\":0,\"93038\":2,\"Z\":5,\"a \":1,\"b\u00dfa_a\":4,\"b\u65e5\u65e5\ud83d\ude00\u65e5\":3}",
+            "canonical_byte_ordered": "{\"81583\":0,\"93038\":2,\"Z\":5,\"a \":1,\"b\u00dfa_a\":4,\"b\u65e5\u65e5\ud83d\ude00\u65e5\":3}"
+        },
+        {
+            "name": "random key set 18",
+            "export_json": "{\"46297\":0,\"ZZZZ\":1,\"\\u00e9a\\u00e9_a\":2,\"\\u00e9a\\ud83d\\ude00\\u00df\":3,\"b\":4}",
+            "canonical": "{\"46297\":0,\"ZZZZ\":1,\"b\":4,\"\u00e9a\u00e9_a\":2,\"\u00e9a\ud83d\ude00\u00df\":3}",
+            "canonical_byte_ordered": "{\"46297\":0,\"ZZZZ\":1,\"b\":4,\"\u00e9a\u00e9_a\":2,\"\u00e9a\ud83d\ude00\u00df\":3}"
+        },
+        {
+            "name": "random key set 19",
+            "export_json": "{\"Z\\u00df\":0,\"40598\":1,\"69761\":2,\"Z\\ud83d\\ude00\\u00e9\\u00df-\":3,\"79263\":4,\"54208\":5,\"b\\ud83d\\ude00\\ud83d\\ude00- \":6,\"a\\u00df\":7}",
+            "canonical": "{\"40598\":1,\"54208\":5,\"69761\":2,\"79263\":4,\"Z\u00df\":0,\"Z\ud83d\ude00\u00e9\u00df-\":3,\"a\u00df\":7,\"b\ud83d\ude00\ud83d\ude00- \":6}",
+            "canonical_byte_ordered": "{\"40598\":1,\"54208\":5,\"69761\":2,\"79263\":4,\"Z\u00df\":0,\"Z\ud83d\ude00\u00e9\u00df-\":3,\"a\u00df\":7,\"b\ud83d\ude00\ud83d\ude00- \":6}"
+        },
+        {
+            "name": "random key set 20",
+            "export_json": "{\"22274\":0,\"60687\":1,\"bb-\\u65e5\":2,\"\\u00e9\\u65e5Z\":3,\"\\u00e9a\":4}",
+            "canonical": "{\"22274\":0,\"60687\":1,\"bb-\u65e5\":2,\"\u00e9a\":4,\"\u00e9\u65e5Z\":3}",
+            "canonical_byte_ordered": "{\"22274\":0,\"60687\":1,\"bb-\u65e5\":2,\"\u00e9a\":4,\"\u00e9\u65e5Z\":3}"
+        },
+        {
+            "name": "random key set 21",
+            "export_json": "{\"\\u00e9Z\":0,\"b\":1,\"bZb\\u00df\":2,\"Z\\u00e9__\":3,\"a\\u65e5\":4,\"78019\":5,\"Z\\u00e9\":6,\"\\u00e9\":7,\"a\":8,\"a \\u00e9-\":9,\"12821\":10}",
+            "canonical": "{\"12821\":10,\"78019\":5,\"Z\u00e9\":6,\"Z\u00e9__\":3,\"a\":8,\"a \u00e9-\":9,\"a\u65e5\":4,\"b\":1,\"bZb\u00df\":2,\"\u00e9\":7,\"\u00e9Z\":0}",
+            "canonical_byte_ordered": "{\"12821\":10,\"78019\":5,\"Z\u00e9\":6,\"Z\u00e9__\":3,\"a\":8,\"a \u00e9-\":9,\"a\u65e5\":4,\"b\":1,\"bZb\u00df\":2,\"\u00e9\":7,\"\u00e9Z\":0}"
+        },
+        {
+            "name": "random key set 22",
+            "export_json": "{\"\\u00e9\\u00df\":0,\"Z\":1,\"\\u00e9--Z\":2,\"34809\":3,\"\\u00e9a\\u00e9b\":4,\"39004\":5,\"90289\":6,\"93330\":7}",
+            "canonical": "{\"34809\":3,\"39004\":5,\"90289\":6,\"93330\":7,\"Z\":1,\"\u00e9--Z\":2,\"\u00e9a\u00e9b\":4,\"\u00e9\u00df\":0}",
+            "canonical_byte_ordered": "{\"34809\":3,\"39004\":5,\"90289\":6,\"93330\":7,\"Z\":1,\"\u00e9--Z\":2,\"\u00e9a\u00e9b\":4,\"\u00e9\u00df\":0}"
+        },
+        {
+            "name": "random key set 23",
+            "export_json": "{\"a_\\u00df\\u00e9b\":0,\"a\\u00e9\\u00e9\":1,\"65639\":2,\"b\":3,\"a\":4,\"a\\u00df\\u00e9 \\u00e9\":5,\"98774\":6,\"\\u00e9_\\u00e9\":7,\"Z\\u65e5\":8,\"ZZ\\u65e5-\":9}",
+            "canonical": "{\"65639\":2,\"98774\":6,\"ZZ\u65e5-\":9,\"Z\u65e5\":8,\"a\":4,\"a_\u00df\u00e9b\":0,\"a\u00df\u00e9 \u00e9\":5,\"a\u00e9\u00e9\":1,\"b\":3,\"\u00e9_\u00e9\":7}",
+            "canonical_byte_ordered": "{\"65639\":2,\"98774\":6,\"ZZ\u65e5-\":9,\"Z\u65e5\":8,\"a\":4,\"a_\u00df\u00e9b\":0,\"a\u00df\u00e9 \u00e9\":5,\"a\u00e9\u00e9\":1,\"b\":3,\"\u00e9_\u00e9\":7}"
+        },
+        {
+            "name": "random key set 24",
+            "export_json": "{\"Z\\u00e9\\ud83d\\ude00\":0,\"a\":1,\"aaba\\u65e5\":2}",
+            "canonical": "{\"Z\u00e9\ud83d\ude00\":0,\"a\":1,\"aaba\u65e5\":2}",
+            "canonical_byte_ordered": "{\"Z\u00e9\ud83d\ude00\":0,\"a\":1,\"aaba\u65e5\":2}"
+        },
+        {
+            "name": "random key set 25",
+            "export_json": "{\"b\\u65e5-Z\":0,\"36091\":1,\"a \\u00e9-\\u00df\":2}",
+            "canonical": "{\"36091\":1,\"a \u00e9-\u00df\":2,\"b\u65e5-Z\":0}",
+            "canonical_byte_ordered": "{\"36091\":1,\"a \u00e9-\u00df\":2,\"b\u65e5-Z\":0}"
+        },
+        {
+            "name": "random key set 26",
+            "export_json": "{\"bb\\ud83d\\ude00Z \":0,\"b\\u00df-Z\":1,\"abb\":2,\"Z\\ud83d\\ude00\\u00df_b\":3,\"29754\":4,\"Z\\u00e9\":5,\"-458\":6,\"19184\":7}",
+            "canonical": "{\"-458\":6,\"19184\":7,\"29754\":4,\"Z\u00e9\":5,\"Z\ud83d\ude00\u00df_b\":3,\"abb\":2,\"bb\ud83d\ude00Z \":0,\"b\u00df-Z\":1}",
+            "canonical_byte_ordered": "{\"-458\":6,\"19184\":7,\"29754\":4,\"Z\u00e9\":5,\"Z\ud83d\ude00\u00df_b\":3,\"abb\":2,\"bb\ud83d\ude00Z \":0,\"b\u00df-Z\":1}"
+        },
+        {
+            "name": "random key set 27",
+            "export_json": "{\"\\u00e9-b \":0,\"Z\\u65e5 \\u00e9\":1,\"Zb \\u00df\":2,\"48103\":3,\"a\\ud83d\\ude00\\u00df\\u65e5\":4,\"bb \":5,\"a\":6,\"21704\":7,\"b_Z\":8,\"b\":9,\"b\\u00e9-aZ\":10}",
+            "canonical": "{\"21704\":7,\"48103\":3,\"Zb \u00df\":2,\"Z\u65e5 \u00e9\":1,\"a\":6,\"a\ud83d\ude00\u00df\u65e5\":4,\"b\":9,\"b_Z\":8,\"bb \":5,\"b\u00e9-aZ\":10,\"\u00e9-b \":0}",
+            "canonical_byte_ordered": "{\"21704\":7,\"48103\":3,\"Zb \u00df\":2,\"Z\u65e5 \u00e9\":1,\"a\":6,\"a\ud83d\ude00\u00df\u65e5\":4,\"b\":9,\"b_Z\":8,\"bb \":5,\"b\u00e9-aZ\":10,\"\u00e9-b \":0}"
+        },
+        {
+            "name": "random key set 28",
+            "export_json": "{\"\\u00e9\\u65e5\":0,\"b \\u00e9\":1,\"Zb\\u00e9\\ud83d\\ude00b\":2,\"\\u00e9\\u00dfa__\":3,\"35105\":4,\"a_- a\":5,\"a\":6}",
+            "canonical": "{\"35105\":4,\"Zb\u00e9\ud83d\ude00b\":2,\"a\":6,\"a_- a\":5,\"b \u00e9\":1,\"\u00e9\u00dfa__\":3,\"\u00e9\u65e5\":0}",
+            "canonical_byte_ordered": "{\"35105\":4,\"Zb\u00e9\ud83d\ude00b\":2,\"a\":6,\"a_- a\":5,\"b \u00e9\":1,\"\u00e9\u00dfa__\":3,\"\u00e9\u65e5\":0}"
+        },
+        {
+            "name": "random key set 29",
+            "export_json": "{\"b\":1,\"22773\":2,\"66103\":3,\"\\u00e9\":4,\"\\u00e9\\u65e5-Za\":5,\"43960\":6,\"82277\":7,\"a\":8}",
+            "canonical": "{\"22773\":2,\"43960\":6,\"66103\":3,\"82277\":7,\"a\":8,\"b\":1,\"\u00e9\":4,\"\u00e9\u65e5-Za\":5}",
+            "canonical_byte_ordered": "{\"22773\":2,\"43960\":6,\"66103\":3,\"82277\":7,\"a\":8,\"b\":1,\"\u00e9\":4,\"\u00e9\u65e5-Za\":5}"
+        },
+        {
+            "name": "random key set 30",
+            "export_json": "{\"Z\":0,\"\\u00e9\\u65e5-\\u00e9\":1,\"\\u00e9a\\u00e9\":2,\"Z \\u00e9\\u00e9 \":3,\"\\u00e9\\u00df\\ud83d\\ude00 \":4,\"a\":5,\"a\\ud83d\\ude00\\u00e9\":6,\"Z_ Z\":7,\"a --\":8}",
+            "canonical": "{\"Z\":0,\"Z \u00e9\u00e9 \":3,\"Z_ Z\":7,\"a\":5,\"a --\":8,\"a\ud83d\ude00\u00e9\":6,\"\u00e9a\u00e9\":2,\"\u00e9\u00df\ud83d\ude00 \":4,\"\u00e9\u65e5-\u00e9\":1}",
+            "canonical_byte_ordered": "{\"Z\":0,\"Z \u00e9\u00e9 \":3,\"Z_ Z\":7,\"a\":5,\"a --\":8,\"a\ud83d\ude00\u00e9\":6,\"\u00e9a\u00e9\":2,\"\u00e9\u00df\ud83d\ude00 \":4,\"\u00e9\u65e5-\u00e9\":1}"
+        },
+        {
+            "name": "random key set 31",
+            "export_json": "{\"32099\":0,\"\\u00e9\":1,\"68489\":2,\"31939\":3,\"a_\":4,\"b_ \":5,\"ab\\ud83d\\ude00\\u00e9\\u00e9\":6}",
+            "canonical": "{\"31939\":3,\"32099\":0,\"68489\":2,\"a_\":4,\"ab\ud83d\ude00\u00e9\u00e9\":6,\"b_ \":5,\"\u00e9\":1}",
+            "canonical_byte_ordered": "{\"31939\":3,\"32099\":0,\"68489\":2,\"a_\":4,\"ab\ud83d\ude00\u00e9\u00e9\":6,\"b_ \":5,\"\u00e9\":1}"
+        },
+        {
+            "name": "random key set 32",
+            "export_json": "{\"4633\":0,\"\\u00e9a\":1,\"Z\":2,\"a\\u65e5- a\":3,\"Z\\u65e5\\u65e5\":4,\"3711\":5}",
+            "canonical": "{\"3711\":5,\"4633\":0,\"Z\":2,\"Z\u65e5\u65e5\":4,\"a\u65e5- a\":3,\"\u00e9a\":1}",
+            "canonical_byte_ordered": "{\"3711\":5,\"4633\":0,\"Z\":2,\"Z\u65e5\u65e5\":4,\"a\u65e5- a\":3,\"\u00e9a\":1}"
+        },
+        {
+            "name": "random key set 33",
+            "export_json": "{\"Z\\u65e5\":0,\"145\":1,\"79805\":2,\"baa\":3,\"Z-\":4,\"Z-b-Z\":5,\"40259\":6,\"Z\":7,\"8683\":8,\"\\u00e9\\ud83d\\ude00aZ\":9,\"39994\":10}",
+            "canonical": "{\"145\":1,\"8683\":8,\"39994\":10,\"40259\":6,\"79805\":2,\"Z\":7,\"Z-\":4,\"Z-b-Z\":5,\"Z\u65e5\":0,\"baa\":3,\"\u00e9\ud83d\ude00aZ\":9}",
+            "canonical_byte_ordered": "{\"145\":1,\"39994\":10,\"40259\":6,\"79805\":2,\"8683\":8,\"Z\":7,\"Z-\":4,\"Z-b-Z\":5,\"Z\u65e5\":0,\"baa\":3,\"\u00e9\ud83d\ude00aZ\":9}"
+        },
+        {
+            "name": "random key set 34",
+            "export_json": "{\"\\u00e9_\\u00e9 -\":0,\"62514\":1,\"18596\":2,\"66062\":3,\"43563\":4,\"Z\":5,\"Z \":6,\"\\u00e9\\u00e9a\":7,\"32931\":8,\"17136\":9}",
+            "canonical": "{\"17136\":9,\"18596\":2,\"32931\":8,\"43563\":4,\"62514\":1,\"66062\":3,\"Z\":5,\"Z \":6,\"\u00e9_\u00e9 -\":0,\"\u00e9\u00e9a\":7}",
+            "canonical_byte_ordered": "{\"17136\":9,\"18596\":2,\"32931\":8,\"43563\":4,\"62514\":1,\"66062\":3,\"Z\":5,\"Z \":6,\"\u00e9_\u00e9 -\":0,\"\u00e9\u00e9a\":7}"
+        },
+        {
+            "name": "random key set 35",
+            "export_json": "{\"\\u00e9\\u00e9a\\ud83d\\ude00\":0,\"b\\u00df\\ud83d\\ude00 \":1,\"\\u00e9\\u65e5\\u00e9\":2,\"94332\":3,\"\\u00e9\\ud83d\\ude00 \\u00df\\ud83d\\ude00\":4,\"a\":5,\"Z-\":6,\"54203\":7,\"97532\":8,\"46825\":9}",
+            "canonical": "{\"46825\":9,\"54203\":7,\"94332\":3,\"97532\":8,\"Z-\":6,\"a\":5,\"b\u00df\ud83d\ude00 \":1,\"\u00e9\u00e9a\ud83d\ude00\":0,\"\u00e9\u65e5\u00e9\":2,\"\u00e9\ud83d\ude00 \u00df\ud83d\ude00\":4}",
+            "canonical_byte_ordered": "{\"46825\":9,\"54203\":7,\"94332\":3,\"97532\":8,\"Z-\":6,\"a\":5,\"b\u00df\ud83d\ude00 \":1,\"\u00e9\u00e9a\ud83d\ude00\":0,\"\u00e9\u65e5\u00e9\":2,\"\u00e9\ud83d\ude00 \u00df\ud83d\ude00\":4}"
+        },
+        {
+            "name": "random key set 36",
+            "export_json": "{\"b\\u00df\":0,\"\\u00e9\\u00e9Z\":1,\"a\\u65e5\":2,\"\\u00e9\\u00dfb\":3,\"82019\":4,\"b\\u00df\\u00df\":5,\"Z-\":6,\"\\u00e9a\":7,\"98705\":8,\"67067\":9}",
+            "canonical": "{\"67067\":9,\"82019\":4,\"98705\":8,\"Z-\":6,\"a\u65e5\":2,\"b\u00df\":0,\"b\u00df\u00df\":5,\"\u00e9a\":7,\"\u00e9\u00dfb\":3,\"\u00e9\u00e9Z\":1}",
+            "canonical_byte_ordered": "{\"67067\":9,\"82019\":4,\"98705\":8,\"Z-\":6,\"a\u65e5\":2,\"b\u00df\":0,\"b\u00df\u00df\":5,\"\u00e9a\":7,\"\u00e9\u00dfb\":3,\"\u00e9\u00e9Z\":1}"
+        },
+        {
+            "name": "random key set 37",
+            "export_json": "{\"a\\u65e5\\u00e9\":0,\"51448\":1,\"a-\\ud83d\\ude00\\u00df\":2,\"40022\":3,\"52060\":4,\"22981\":5,\"\\u00e9b\\ud83d\\ude00\\u00df_\":6,\"47718\":7,\"2379\":8,\"b\\ud83d\\ude00_\\u00e9_\":9,\"\\u00e9\":10}",
+            "canonical": "{\"2379\":8,\"22981\":5,\"40022\":3,\"47718\":7,\"51448\":1,\"52060\":4,\"a-\ud83d\ude00\u00df\":2,\"a\u65e5\u00e9\":0,\"b\ud83d\ude00_\u00e9_\":9,\"\u00e9\":10,\"\u00e9b\ud83d\ude00\u00df_\":6}",
+            "canonical_byte_ordered": "{\"22981\":5,\"2379\":8,\"40022\":3,\"47718\":7,\"51448\":1,\"52060\":4,\"a-\ud83d\ude00\u00df\":2,\"a\u65e5\u00e9\":0,\"b\ud83d\ude00_\u00e9_\":9,\"\u00e9\":10,\"\u00e9b\ud83d\ude00\u00df_\":6}"
+        },
+        {
+            "name": "random key set 38",
+            "export_json": "{\"a\\ud83d\\ude00Za\\ud83d\\ude00\":0,\"\\u00e9-b\":1,\"a\":2,\"b a\":3,\"a_\":4,\"bba\":5,\"56195\":6,\"Z-a\":7,\"\\u00e9Z\\u65e5a\\ud83d\\ude00\":8,\"b\\u00e9\\u00e9-\\u00df\":9,\"66592\":10}",
+            "canonical": "{\"56195\":6,\"66592\":10,\"Z-a\":7,\"a\":2,\"a_\":4,\"a\ud83d\ude00Za\ud83d\ude00\":0,\"b a\":3,\"bba\":5,\"b\u00e9\u00e9-\u00df\":9,\"\u00e9-b\":1,\"\u00e9Z\u65e5a\ud83d\ude00\":8}",
+            "canonical_byte_ordered": "{\"56195\":6,\"66592\":10,\"Z-a\":7,\"a\":2,\"a_\":4,\"a\ud83d\ude00Za\ud83d\ude00\":0,\"b a\":3,\"bba\":5,\"b\u00e9\u00e9-\u00df\":9,\"\u00e9-b\":1,\"\u00e9Z\u65e5a\ud83d\ude00\":8}"
+        },
+        {
+            "name": "random key set 39",
+            "export_json": "{\"bZ_\":0,\"a- \":1,\"Z_\\u00e9\\u00e9\":2,\"\\u00e9\\u00df_\":3,\"b\":4,\"b-a\":5,\"ZZ\\u00e9a\":6,\"77538\":7,\"\\u00e9\\u00df\":8,\"2249\":9}",
+            "canonical": "{\"2249\":9,\"77538\":7,\"ZZ\u00e9a\":6,\"Z_\u00e9\u00e9\":2,\"a- \":1,\"b\":4,\"b-a\":5,\"bZ_\":0,\"\u00e9\u00df\":8,\"\u00e9\u00df_\":3}",
+            "canonical_byte_ordered": "{\"2249\":9,\"77538\":7,\"ZZ\u00e9a\":6,\"Z_\u00e9\u00e9\":2,\"a- \":1,\"b\":4,\"b-a\":5,\"bZ_\":0,\"\u00e9\u00df\":8,\"\u00e9\u00df_\":3}"
+        },
+        {
+            "name": "mixed key set 0",
+            "export_json": "{\"0\":0,\"02\":1,\"1.\":2,\"2a\":3,\"-.a\":4,\"1ea\":5}",
+            "canonical": "{\"-.a\":4,\"0\":0,\"1.\":2,\"02\":1,\"1ea\":5,\"2a\":3}",
+            "canonical_byte_ordered": "{\"-.a\":4,\"0\":0,\"02\":1,\"1.\":2,\"1ea\":5,\"2a\":3}"
+        },
+        {
+            "name": "mixed key set 1",
+            "export_json": "{\"9\":0,\"a\":1,\"--\":2,\".a\":3,\"e.\":4}",
+            "canonical": "{\"--\":2,\".a\":3,\"9\":0,\"a\":1,\"e.\":4}",
+            "canonical_byte_ordered": "{\"--\":2,\".a\":3,\"9\":0,\"a\":1,\"e.\":4}"
+        },
+        {
+            "name": "mixed key set 2",
+            "export_json": "{\".\":0,\"a\":1,\"--\":2,\"2.2\":3}",
+            "canonical": "{\"--\":2,\".\":0,\"2.2\":3,\"a\":1}",
+            "canonical_byte_ordered": "{\"--\":2,\".\":0,\"2.2\":3,\"a\":1}"
+        },
+        {
+            "name": "mixed key set 3",
+            "export_json": "{\".\":0,\"e\":1,\"29\":2,\"9-\":3,\"a9\":4,\"ee\":5}",
+            "canonical": "{\".\":0,\"29\":2,\"9-\":3,\"a9\":4,\"e\":1,\"ee\":5}",
+            "canonical_byte_ordered": "{\".\":0,\"29\":2,\"9-\":3,\"a9\":4,\"e\":1,\"ee\":5}"
+        },
+        {
+            "name": "mixed key set 4",
+            "export_json": "{\"e\":0,\"9-\":1,\"2.9\":2}",
+            "canonical": "{\"2.9\":2,\"9-\":1,\"e\":0}",
+            "canonical_byte_ordered": "{\"2.9\":2,\"9-\":1,\"e\":0}"
+        },
+        {
+            "name": "mixed key set 5",
+            "export_json": "{\".\":0,\"0-\":1,\"2-\":2,\"9e2\":3}",
+            "canonical": "{\".\":0,\"0-\":1,\"2-\":2,\"9e2\":3}",
+            "canonical_byte_ordered": "{\".\":0,\"0-\":1,\"2-\":2,\"9e2\":3}"
+        },
+        {
+            "name": "mixed key set 6",
+            "export_json": "{\"e\":0,\"9-1\":1}",
+            "canonical": "{\"9-1\":1,\"e\":0}",
+            "canonical_byte_ordered": "{\"9-1\":1,\"e\":0}"
+        },
+        {
+            "name": "mixed key set 7",
+            "export_json": "{\"e\":0,\"ea\":1,\"-0a\":2,\"ea-\":3}",
+            "canonical": "{\"-0a\":2,\"e\":0,\"ea\":1,\"ea-\":3}",
+            "canonical_byte_ordered": "{\"-0a\":2,\"e\":0,\"ea\":1,\"ea-\":3}"
+        },
+        {
+            "name": "mixed key set 8",
+            "export_json": "{\"9\":0,\"1-1\":1}",
+            "canonical": "{\"1-1\":1,\"9\":0}",
+            "canonical_byte_ordered": "{\"1-1\":1,\"9\":0}"
+        },
+        {
+            "name": "mixed key set 9",
+            "export_json": "{\"-\":0,\"1\":1,\"-1\":2,\"00\":3,\".2a\":4,\"0--\":5}",
+            "canonical": "{\"-\":0,\"-1\":2,\".2a\":4,\"0--\":5,\"00\":3,\"1\":1}",
+            "canonical_byte_ordered": "{\"-\":0,\"-1\":2,\".2a\":4,\"0--\":5,\"00\":3,\"1\":1}"
+        },
+        {
+            "name": "mixed key set 10",
+            "export_json": "{\"-\":0,\"1\":1,\"2-\":2,\"e9\":3,\"1a-\":4}",
+            "canonical": "{\"-\":0,\"1\":1,\"1a-\":4,\"2-\":2,\"e9\":3}",
+            "canonical_byte_ordered": "{\"-\":0,\"1\":1,\"1a-\":4,\"2-\":2,\"e9\":3}"
+        },
+        {
+            "name": "mixed key set 11",
+            "export_json": "{\"-9\":0,\"ae\":1,\"-e1\":2,\"0e0\":3,\"9a.\":4}",
+            "canonical": "{\"-9\":0,\"-e1\":2,\"0e0\":3,\"9a.\":4,\"ae\":1}",
+            "canonical_byte_ordered": "{\"-9\":0,\"-e1\":2,\"0e0\":3,\"9a.\":4,\"ae\":1}"
+        },
+        {
+            "name": "mixed key set 12",
+            "export_json": "{\"9\":0,\"--e\":1,\"9a2\":2}",
+            "canonical": "{\"--e\":1,\"9\":0,\"9a2\":2}",
+            "canonical_byte_ordered": "{\"--e\":1,\"9\":0,\"9a2\":2}"
+        },
+        {
+            "name": "mixed key set 13",
+            "export_json": "{\"-\":0,\".1\":1}",
+            "canonical": "{\"-\":0,\".1\":1}",
+            "canonical_byte_ordered": "{\"-\":0,\".1\":1}"
+        },
+        {
+            "name": "mixed key set 14",
+            "export_json": "{\"-\":0,\".\":1,\"a0\":2,\"-11\":3,\".-a\":4,\".ae\":5}",
+            "canonical": "{\"-\":0,\"-11\":3,\".\":1,\".-a\":4,\".ae\":5,\"a0\":2}",
+            "canonical_byte_ordered": "{\"-\":0,\"-11\":3,\".\":1,\".-a\":4,\".ae\":5,\"a0\":2}"
+        },
+        {
+            "name": "mixed key set 15",
+            "export_json": "{\".\":0,\"a\":1}",
+            "canonical": "{\".\":0,\"a\":1}",
+            "canonical_byte_ordered": "{\".\":0,\"a\":1}"
+        },
+        {
+            "name": "mixed key set 16",
+            "export_json": "{\"2\":0,\"e1\":1,\"e2\":2,\"-.-\":3,\"-.9\":4}",
+            "canonical": "{\"-.-\":3,\"-.9\":4,\"2\":0,\"e1\":1,\"e2\":2}",
+            "canonical_byte_ordered": "{\"-.-\":3,\"-.9\":4,\"2\":0,\"e1\":1,\"e2\":2}"
+        },
+        {
+            "name": "mixed key set 17",
+            "export_json": "{\"a9\":0,\"e..\":1}",
+            "canonical": "{\"a9\":0,\"e..\":1}",
+            "canonical_byte_ordered": "{\"a9\":0,\"e..\":1}"
+        },
+        {
+            "name": "mixed key set 18",
+            "export_json": "{\"0\":0,\"1\":1,\"-.\":2,\"2.\":3,\"99\":4,\"011\":5}",
+            "canonical": "{\"-.\":2,\"0\":0,\"1\":1,\"2.\":3,\"011\":5,\"99\":4}",
+            "canonical_byte_ordered": "{\"-.\":2,\"0\":0,\"011\":5,\"1\":1,\"2.\":3,\"99\":4}"
+        },
+        {
+            "name": "mixed key set 19",
+            "export_json": "{\"-\":0,\".\":1,\"2\":2}",
+            "canonical": "{\"-\":0,\".\":1,\"2\":2}",
+            "canonical_byte_ordered": "{\"-\":0,\".\":1,\"2\":2}"
+        },
+        {
+            "name": "mixed key set 20",
+            "export_json": "{\"9\":0,\".11\":1,\"1--\":2}",
+            "canonical": "{\".11\":1,\"1--\":2,\"9\":0}",
+            "canonical_byte_ordered": "{\".11\":1,\"1--\":2,\"9\":0}"
+        },
+        {
+            "name": "mixed key set 21",
+            "export_json": "{\"e-\":0,\"-.1\":1,\".1e\":2,\"092\":3}",
+            "canonical": "{\"-.1\":1,\".1e\":2,\"092\":3,\"e-\":0}",
+            "canonical_byte_ordered": "{\"-.1\":1,\".1e\":2,\"092\":3,\"e-\":0}"
+        },
+        {
+            "name": "mixed key set 22",
+            "export_json": "{\"19\":0,\"-a1\":1}",
+            "canonical": "{\"-a1\":1,\"19\":0}",
+            "canonical_byte_ordered": "{\"-a1\":1,\"19\":0}"
+        },
+        {
+            "name": "mixed key set 23",
+            "export_json": "{\"9\":0,\".9\":1,\"19\":2,\"90\":3,\"a.-\":4}",
+            "canonical": "{\".9\":1,\"9\":0,\"19\":2,\"90\":3,\"a.-\":4}",
+            "canonical_byte_ordered": "{\".9\":1,\"19\":2,\"9\":0,\"90\":3,\"a.-\":4}"
+        },
+        {
+            "name": "mixed key set 24",
+            "export_json": "{\"1\":0,\"-0\":1,\"ee\":2,\"19a\":3}",
+            "canonical": "{\"-0\":1,\"1\":0,\"19a\":3,\"ee\":2}",
+            "canonical_byte_ordered": "{\"-0\":1,\"1\":0,\"19a\":3,\"ee\":2}"
+        },
+        {
+            "name": "mixed key set 25",
+            "export_json": "{\"0\":0,\"a\":1,\".-\":2,\".1\":3,\"2-2\":4,\"a-e\":5}",
+            "canonical": "{\".-\":2,\"0\":0,\".1\":3,\"2-2\":4,\"a\":1,\"a-e\":5}",
+            "canonical_byte_ordered": "{\".-\":2,\".1\":3,\"0\":0,\"2-2\":4,\"a\":1,\"a-e\":5}"
+        },
+        {
+            "name": "mixed key set 26",
+            "export_json": "{\"2\":0,\"a1-\":1}",
+            "canonical": "{\"2\":0,\"a1-\":1}",
+            "canonical_byte_ordered": "{\"2\":0,\"a1-\":1}"
+        },
+        {
+            "name": "mixed key set 27",
+            "export_json": "{\".\":0,\"..\":1,\"ee\":2,\"00a\":3,\"a1.\":4}",
+            "canonical": "{\".\":0,\"..\":1,\"00a\":3,\"a1.\":4,\"ee\":2}",
+            "canonical_byte_ordered": "{\".\":0,\"..\":1,\"00a\":3,\"a1.\":4,\"ee\":2}"
+        },
+        {
+            "name": "mixed key set 28",
+            "export_json": "{\"0\":0,\"1\":1,\"19\":2,\"212\":3}",
+            "canonical": "{\"0\":0,\"1\":1,\"19\":2,\"212\":3}",
+            "canonical_byte_ordered": "{\"0\":0,\"1\":1,\"19\":2,\"212\":3}"
+        },
+        {
+            "name": "mixed key set 29",
+            "export_json": "{\"199\":0,\"900\":1}",
+            "canonical": "{\"199\":0,\"900\":1}",
+            "canonical_byte_ordered": "{\"199\":0,\"900\":1}"
+        },
+        {
+            "name": "mixed key set 30",
+            "export_json": "{\"1\":0,\"e-.\":1}",
+            "canonical": "{\"1\":0,\"e-.\":1}",
+            "canonical_byte_ordered": "{\"1\":0,\"e-.\":1}"
+        },
+        {
+            "name": "mixed key set 31",
+            "export_json": "{\"9\":0,\"e\":1,\"ae\":2,\"ea-\":3}",
+            "canonical": "{\"9\":0,\"ae\":2,\"e\":1,\"ea-\":3}",
+            "canonical_byte_ordered": "{\"9\":0,\"ae\":2,\"e\":1,\"ea-\":3}"
+        },
+        {
+            "name": "mixed key set 32",
+            "export_json": "{\".-\":0,\"2a\":1,\"e-\":2,\"e1\":3,\"e9\":4}",
+            "canonical": "{\".-\":0,\"2a\":1,\"e-\":2,\"e1\":3,\"e9\":4}",
+            "canonical_byte_ordered": "{\".-\":0,\"2a\":1,\"e-\":2,\"e1\":3,\"e9\":4}"
+        },
+        {
+            "name": "mixed key set 33",
+            "export_json": "{\"0-\":0,\"a1\":1}",
+            "canonical": "{\"0-\":0,\"a1\":1}",
+            "canonical_byte_ordered": "{\"0-\":0,\"a1\":1}"
+        },
+        {
+            "name": "mixed key set 34",
+            "export_json": "{\"9\":0,\"29\":1,\"e1\":2,\"-9e\":3,\"120\":4}",
+            "canonical": "{\"-9e\":3,\"9\":0,\"29\":1,\"120\":4,\"e1\":2}",
+            "canonical_byte_ordered": "{\"-9e\":3,\"120\":4,\"29\":1,\"9\":0,\"e1\":2}"
+        },
+        {
+            "name": "mixed key set 35",
+            "export_json": "{\"9\":0,\".9\":1,\"a1\":2,\"02a\":3}",
+            "canonical": "{\".9\":1,\"02a\":3,\"9\":0,\"a1\":2}",
+            "canonical_byte_ordered": "{\".9\":1,\"02a\":3,\"9\":0,\"a1\":2}"
+        },
+        {
+            "name": "mixed key set 36",
+            "export_json": "{\".\":0,\"20\":1,\"-.2\":2,\"0--\":3}",
+            "canonical": "{\"-.2\":2,\".\":0,\"0--\":3,\"20\":1}",
+            "canonical_byte_ordered": "{\"-.2\":2,\".\":0,\"0--\":3,\"20\":1}"
+        },
+        {
+            "name": "mixed key set 37",
+            "export_json": "{\".e\":0,\"-22\":1}",
+            "canonical": "{\"-22\":1,\".e\":0}",
+            "canonical_byte_ordered": "{\"-22\":1,\".e\":0}"
+        },
+        {
+            "name": "mixed key set 38",
+            "export_json": "{\"11\":0,\"9a1\":1}",
+            "canonical": "{\"11\":0,\"9a1\":1}",
+            "canonical_byte_ordered": "{\"11\":0,\"9a1\":1}"
+        },
+        {
+            "name": "mixed key set 39",
+            "export_json": "{\"-2\":0,\"a9\":1,\".a2\":2,\"e-2\":3,\"e0a\":4,\"e9a\":5}",
+            "canonical": "{\"-2\":0,\".a2\":2,\"a9\":1,\"e-2\":3,\"e0a\":4,\"e9a\":5}",
+            "canonical_byte_ordered": "{\"-2\":0,\".a2\":2,\"a9\":1,\"e-2\":3,\"e0a\":4,\"e9a\":5}"
+        },
+        {
+            "name": "mixed key set 40",
+            "export_json": "{\"2\":0,\"9\":1,\"e\":2}",
+            "canonical": "{\"2\":0,\"9\":1,\"e\":2}",
+            "canonical_byte_ordered": "{\"2\":0,\"9\":1,\"e\":2}"
+        },
+        {
+            "name": "mixed key set 41",
+            "export_json": "{\"01\":0,\"02\":1,\"2a\":2,\"e.\":3,\".ee\":4}",
+            "canonical": "{\".ee\":4,\"01\":0,\"02\":1,\"2a\":2,\"e.\":3}",
+            "canonical_byte_ordered": "{\".ee\":4,\"01\":0,\"02\":1,\"2a\":2,\"e.\":3}"
+        },
+        {
+            "name": "mixed key set 42",
+            "export_json": "{\"9\":0,\"1-a\":1}",
+            "canonical": "{\"1-a\":1,\"9\":0}",
+            "canonical_byte_ordered": "{\"1-a\":1,\"9\":0}"
+        },
+        {
+            "name": "mixed key set 43",
+            "export_json": "{\"9\":0,\"e9\":1,\"-10\":2,\"a.e\":3}",
+            "canonical": "{\"-10\":2,\"9\":0,\"a.e\":3,\"e9\":1}",
+            "canonical_byte_ordered": "{\"-10\":2,\"9\":0,\"a.e\":3,\"e9\":1}"
+        },
+        {
+            "name": "mixed key set 44",
+            "export_json": "{\"1\":0,\"e\":1,\"91\":2,\"ee0\":3}",
+            "canonical": "{\"1\":0,\"91\":2,\"e\":1,\"ee0\":3}",
+            "canonical_byte_ordered": "{\"1\":0,\"91\":2,\"e\":1,\"ee0\":3}"
+        },
+        {
+            "name": "mixed key set 45",
+            "export_json": "{\"02\":0,\"a2\":1,\"ae\":2,\"000\":3,\"a--\":4,\"e--\":5}",
+            "canonical": "{\"000\":3,\"02\":0,\"a--\":4,\"a2\":1,\"ae\":2,\"e--\":5}",
+            "canonical_byte_ordered": "{\"000\":3,\"02\":0,\"a--\":4,\"a2\":1,\"ae\":2,\"e--\":5}"
+        },
+        {
+            "name": "mixed key set 46",
+            "export_json": "{\"e\":0,\"-.0\":1,\".e9\":2,\"1.a\":3,\"1a-\":4}",
+            "canonical": "{\"-.0\":1,\".e9\":2,\"1.a\":3,\"1a-\":4,\"e\":0}",
+            "canonical_byte_ordered": "{\"-.0\":1,\".e9\":2,\"1.a\":3,\"1a-\":4,\"e\":0}"
+        },
+        {
+            "name": "mixed key set 47",
+            "export_json": "{\"e\":0,\"00\":1,\"9a\":2,\"a.-\":3,\"e2e\":4}",
+            "canonical": "{\"00\":1,\"9a\":2,\"a.-\":3,\"e\":0,\"e2e\":4}",
+            "canonical_byte_ordered": "{\"00\":1,\"9a\":2,\"a.-\":3,\"e\":0,\"e2e\":4}"
+        },
+        {
+            "name": "mixed key set 48",
+            "export_json": "{\"0\":0,\"2-\":1,\"-a0\":2,\"9e9\":3}",
+            "canonical": "{\"-a0\":2,\"0\":0,\"2-\":1,\"9e9\":3}",
+            "canonical_byte_ordered": "{\"-a0\":2,\"0\":0,\"2-\":1,\"9e9\":3}"
+        },
+        {
+            "name": "mixed key set 49",
+            "export_json": "{\"1a\":0,\"2-\":1,\"29\":2}",
+            "canonical": "{\"1a\":0,\"2-\":1,\"29\":2}",
+            "canonical_byte_ordered": "{\"1a\":0,\"2-\":1,\"29\":2}"
+        },
+        {
+            "name": "mixed key set 50",
+            "export_json": "{\"-2\":0,\"..\":1,\"19\":2,\"91\":3,\"e2\":4,\"1ee\":5}",
+            "canonical": "{\"-2\":0,\"..\":1,\"19\":2,\"1ee\":5,\"91\":3,\"e2\":4}",
+            "canonical_byte_ordered": "{\"-2\":0,\"..\":1,\"19\":2,\"1ee\":5,\"91\":3,\"e2\":4}"
+        },
+        {
+            "name": "mixed key set 51",
+            "export_json": "{\"-\":0,\"a1\":1,\"..a\":2,\".20\":3,\"91-\":4}",
+            "canonical": "{\"-\":0,\"..a\":2,\".20\":3,\"91-\":4,\"a1\":1}",
+            "canonical_byte_ordered": "{\"-\":0,\"..a\":2,\".20\":3,\"91-\":4,\"a1\":1}"
+        },
+        {
+            "name": "mixed key set 52",
+            "export_json": "{\"1\":0,\"-09\":1,\"-2a\":2,\"090\":3,\"e..\":4,\"e.e\":5}",
+            "canonical": "{\"-09\":1,\"-2a\":2,\"1\":0,\"090\":3,\"e..\":4,\"e.e\":5}",
+            "canonical_byte_ordered": "{\"-09\":1,\"-2a\":2,\"090\":3,\"1\":0,\"e..\":4,\"e.e\":5}"
+        },
+        {
+            "name": "mixed key set 53",
+            "export_json": "{\".\":0,\"0\":1,\"1\":2,\"1.a\":3,\"2ee\":4,\"aa2\":5}",
+            "canonical": "{\".\":0,\"0\":1,\"1\":2,\"1.a\":3,\"2ee\":4,\"aa2\":5}",
+            "canonical_byte_ordered": "{\".\":0,\"0\":1,\"1\":2,\"1.a\":3,\"2ee\":4,\"aa2\":5}"
+        },
+        {
+            "name": "mixed key set 54",
+            "export_json": "{\"9\":0,\"a\":1,\"e\":2,\"90.\":3}",
+            "canonical": "{\"9\":0,\"90.\":3,\"a\":1,\"e\":2}",
+            "canonical_byte_ordered": "{\"9\":0,\"90.\":3,\"a\":1,\"e\":2}"
+        },
+        {
+            "name": "mixed key set 55",
+            "export_json": "{\"0\":0,\"0e\":1,\".e9\":2}",
+            "canonical": "{\".e9\":2,\"0\":0,\"0e\":1}",
+            "canonical_byte_ordered": "{\".e9\":2,\"0\":0,\"0e\":1}"
+        },
+        {
+            "name": "mixed key set 56",
+            "export_json": "{\"0\":0,\"1\":1,\"9\":2,\"a\":3,\"11\":4,\"-9.\":5}",
+            "canonical": "{\"-9.\":5,\"0\":0,\"1\":1,\"9\":2,\"11\":4,\"a\":3}",
+            "canonical_byte_ordered": "{\"-9.\":5,\"0\":0,\"1\":1,\"11\":4,\"9\":2,\"a\":3}"
+        },
+        {
+            "name": "mixed key set 57",
+            "export_json": "{\"2\":0,\"-2\":1,\"a99\":2,\"e02\":3}",
+            "canonical": "{\"-2\":1,\"2\":0,\"a99\":2,\"e02\":3}",
+            "canonical_byte_ordered": "{\"-2\":1,\"2\":0,\"a99\":2,\"e02\":3}"
+        },
+        {
+            "name": "mixed key set 58",
+            "export_json": "{\"1\":0,\"19\":1,\"e0\":2}",
+            "canonical": "{\"1\":0,\"19\":1,\"e0\":2}",
+            "canonical_byte_ordered": "{\"1\":0,\"19\":1,\"e0\":2}"
+        },
+        {
+            "name": "mixed key set 59",
+            "export_json": "{\".\":0,\"-1\":1,\"ee\":2,\"1-a\":3,\"2e-\":4}",
+            "canonical": "{\"-1\":1,\".\":0,\"1-a\":3,\"2e-\":4,\"ee\":2}",
+            "canonical_byte_ordered": "{\"-1\":1,\".\":0,\"1-a\":3,\"2e-\":4,\"ee\":2}"
+        }
+    ]
+}

@@ -12,7 +12,7 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { text as readStream } from "node:stream/consumers";
-import { VERSION, verifyExport } from "./verify.js";
+import { parseExport, VERSION, verifyExport } from "./verify.js";
 
 const HELP = `hasp-verify ${VERSION}
 
@@ -33,6 +33,10 @@ Options:
                      the export under test) instead of the bundled FreeTSA
                      root. Opt-in only — without it, an export naming its own
                      attacker-controlled CA cannot pass.
+  --max-anchor-lag <h>
+                     Fail if any attested entry was first time-attested more
+                     than <h> hours after its created_at. Without it, a lag
+                     over 48 hours is printed as a LATE ANCHORING warning.
   --keys-file <p>    Read the published tenant keys from a local JSON document
                      (the /trust/keys/{tenant_id} shape) instead of
                      fetching /trust/keys — offline / air-gapped, and required
@@ -77,7 +81,9 @@ async function main(argv) {
       args.file === "-"
         ? await readStream(process.stdin)
         : await readFile(resolve(args.file), "utf8");
-    data = JSON.parse(raw);
+    // parseExport, not JSON.parse: keeps 64-bit integers exact so entries
+    // carrying one still re-hash.
+    data = parseExport(raw);
   } catch (err) {
     const source = args.file === "-" ? "stdin" : args.file;
     process.stderr.write(`error: could not read or parse ${source}: ${errMessage(err)}\n`);
@@ -91,6 +97,7 @@ async function main(argv) {
       allowUnanchored: args.allowUnanchored,
       caFile: args.caFile ?? undefined,
       allowUntrustedTsa: args.allowUntrustedTsa,
+      maxAnchorLagHours: args.maxAnchorLagHours ?? undefined,
       keysFile: args.keysFile ?? undefined,
       keysBaseUrl: args.keysBaseUrl ?? undefined,
     });
@@ -109,7 +116,7 @@ async function main(argv) {
 
 /** @param {string[]} argv */
 function parseArgs(argv) {
-  /** @type {{file: string | null, json: boolean, skipTsa: boolean, allowUnanchored: boolean, caFile: string | null, allowUntrustedTsa: boolean, keysFile: string | null, keysBaseUrl: string | null, verbose: boolean, help: boolean, version: boolean}} */
+  /** @type {{file: string | null, json: boolean, skipTsa: boolean, allowUnanchored: boolean, caFile: string | null, allowUntrustedTsa: boolean, keysFile: string | null, keysBaseUrl: string | null, maxAnchorLagHours: number | null, verbose: boolean, help: boolean, version: boolean}} */
   const out = {
     file: null,
     json: false,
@@ -119,6 +126,7 @@ function parseArgs(argv) {
     allowUntrustedTsa: false,
     keysFile: null,
     keysBaseUrl: null,
+    maxAnchorLagHours: null,
     verbose: false,
     help: false,
     version: false,
@@ -162,6 +170,14 @@ function parseArgs(argv) {
       i++;
     } else if (a.startsWith("--keys-base-url=")) {
       out.keysBaseUrl = a.slice("--keys-base-url=".length);
+    } else if (a === "--max-anchor-lag" || a.startsWith("--max-anchor-lag=")) {
+      const raw = a.includes("=") ? a.slice(a.indexOf("=") + 1) : argv[++i];
+      const hours = Number(raw);
+      if (raw === undefined || raw === "" || !Number.isFinite(hours) || hours < 0) {
+        process.stderr.write(`error: --max-anchor-lag requires a number of hours\n`);
+        process.exit(2);
+      }
+      out.maxAnchorLagHours = hours;
     } else if (a === "-") {
       if (out.file) {
         process.stderr.write(`error: unexpected positional argument -\n`);
@@ -215,7 +231,14 @@ function printHuman(result, verbose, data) {
     const notices = /** @type {Array<{entry_seq: number, key_id: string, revoked_at: string}>} */ (
       c.keyRevocation.notices ?? []
     );
-    if (notices.length === 0) {
+    const unchecked = /** @type {string[]} */ (c.keyRevocation.unchecked_keys ?? []);
+    for (const keyId of unchecked) {
+      process.stdout.write(
+        `⚠ REVOCATION NOT CHECKED for key ${keyId}: the trust root carries no status for it, so ` +
+          "this result does not rule out that the key was later revoked\n",
+      );
+    }
+    if (notices.length === 0 && unchecked.length === 0) {
       process.stdout.write("✓ no revoked signing keys in this export\n");
     } else {
       for (const n of notices) {
@@ -240,6 +263,17 @@ function printHuman(result, verbose, data) {
         "  This export represents only history AFTER that point. Entries before it were\n" +
         "  removed outside retention maintenance and cannot be verified from this export.\n" +
         "  If you did not expect a reset, treat this as a finding and investigate.\n",
+    );
+  }
+
+  if (result.late_anchoring) {
+    const late = result.late_anchoring;
+    process.stdout.write(
+      `\n⚠ LATE ANCHORING: ${late.entries} entr${late.entries === 1 ? "y was" : "ies were"} first time-attested more than ` +
+        `${late.threshold_hours}h after the time recorded on them\n` +
+        `  (first: seq=${late.first_seq}; longest lag ${late.max_lag_hours}h). A timestamp proves an entry existed BY the\n` +
+        "  token's time, not AT the entry's own created_at. For this stretch the recorded dates rest on\n" +
+        "  the signer alone. Expected after an anchoring outage; otherwise ask why.\n",
     );
   }
 

@@ -325,5 +325,114 @@
     },
     "expected_hash": "7bd2b4b61b1e770d3d4a1b847a308a2ee373421e329498d1f34032857b395ac1",
     "signature": "ed25519:bhtiPM6um5gsUh2iyFilyikbnASx65kPVKpy82rU/c2pQdsbzJCPEWbdquZcZeU6+wXHT+hgOykfGZkfB8pMBw=="
+  },
+  "_sealed_version_comment": "digest_version is extension slot 17, present from digest_version 3: the composition version is itself sealed, so it cannot be lowered after sealing to hide slots 15/16 from verification, and an entry carrying it has the keys of metadata / caller_attribution ordered by UTF-8 bytes instead of ksort(). An exported entry carries the digest_version key exactly when the row was sealed at version 3 or later. Signed with the same throwaway seed keypair. Never hand-edit; regenerate from the emitter.",
+  "sealed_version": {
+    "input": {
+      "digest_version": 3,
+      "user_id": "01HKUSER000000000000000000",
+      "org_id": "01HKORG0000000000000000000",
+      "project_id": null,
+      "action": "record.updated",
+      "entity_type": "Patient",
+      "entity_id": "01HKENTITY0000000000000000",
+      "metadata": {
+        "zeta": "a/b",
+        "alpha": {
+          "y": 1,
+          "x": "café"
+        },
+        "list": [
+          3,
+          1,
+          2
+        ]
+      },
+      "ip_address": "203.0.113.7",
+      "created_at": "2026-01-02T03:04:05+00:00",
+      "phi_disposition": "none",
+      "subject_type": null,
+      "subject_id_hmac": null
+    },
+    "expected_hash": "7d5417dee6e923f0113e0f0be267a462b67a69ca93306e3510fe1038f449d0c8",
+    "signature": "ed25519:IBN4X3gCG7LFt++kcy1w1B3CnnaiYx5XbNxxWG8P+bikCXnrfSTrwa7PD5ZWQ4yG+TqSfDxye8g8BpoxhYxoAg=="
+  },
+  "sealed_version_all_slots": {
+    "input": {
+      "digest_version": 3,
+      "user_id": "01HKUSER000000000000000000",
+      "org_id": "01HKORG0000000000000000000",
+      "project_id": null,
+      "action": "record.updated",
+      "entity_type": "Patient",
+      "entity_id": "01HKENTITY0000000000000000",
+      "metadata": {
+        "zeta": "a/b",
+        "alpha": {
+          "y": 1,
+          "x": "café"
+        },
+        "list": [
+          3,
+          1,
+          2
+        ]
+      },
+      "ip_address": "203.0.113.7",
+      "created_at": "2026-01-02T03:04:05+00:00",
+      "phi_disposition": "none",
+      "subject_type": null,
+      "subject_id_hmac": null,
+      "asserted_actor_hmac": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "customer_id": "01HKCUSTOMER00000000000000",
+      "caller_attribution": {
+        "caller_type": "agent",
+        "caller_id": "01HKCRED0000000000000000000",
+        "org_id": "01HKORG0000000000000000000",
+        "delegating_user_id": "01HKUSER000000000000000000",
+        "personal_access_token_id": null,
+        "agent_credential_id": "01HKCRED0000000000000000000",
+        "agent_id": "01HKAGENT00000000000000000",
+        "delegation_chain": [
+          "01HKUSER000000000000000000"
+        ]
+      },
+      "user_agent": "Mozilla/5.0 (compatible; HaspAgentSDK/1.0)"
+    },
+    "expected_hash": "db8c0ba3cac6f27cecabc5859f3cab481c0ade282f945ee31ac69a0dbc89e361",
+    "signature": "ed25519:Z9oi4OIyDXdhDnN7l+4NsOVh3+TWvFBacQD2xxgMI5KlfOvh1kKUGpFB4ObDqL6lcJfOOeyht3EeSPQKm+KADw=="
+  },
+  "sealed_version_byte_ordered_keys": {
+    "input": {
+      "digest_version": 3,
+      "metadata": {
+        "2": 3,
+        "10": 2,
+        "b": 1,
+        "1a": 4,
+        "é": {
+          "z": 1,
+          "A": 2
+        },
+        "list": [
+          3,
+          1,
+          2
+        ]
+      },
+      "user_id": "01HKUSER000000000000000000",
+      "org_id": "01HKORG0000000000000000000",
+      "project_id": null,
+      "action": "record.updated",
+      "entity_type": "Patient",
+      "entity_id": "01HKENTITY0000000000000000",
+      "ip_address": "203.0.113.7",
+      "created_at": "2026-01-02T03:04:05+00:00",
+      "phi_disposition": "none",
+      "subject_type": null,
+      "subject_id_hmac": null
+    },
+    "expected_hash": "f10b1f647f4754fe31b8eaeeef674346696d33f7ba74122bb2f926ae5238cf92",
+    "signature": "ed25519:OOPaWEag4zxxQR0BemLOeMWNgWTIXvBrNVad/LkcwsUHCU9tbYwB+7nJdZJy3mEj6pnI5MwnIt76nBH4soiKBg=="
   }
 }

@@ -18,7 +18,9 @@
  *          cannot pass, because the default trust bundle never reads that URL.
  *  3. Shell out to
  *       `openssl ts -verify -in <tsr> -CAfile <cacert> -digest <anchor.anchored_data>`.
- *  4. Parse the token's `genTime` via `openssl ts -reply -in <tsr> -text` —
+ *  4. Parse the token's `genTime` from the signed token alone (extracted
+ *     with `-token_out`, printed with `-token_in -text`; never from the
+ *     response's unsigned status block) —
  *     surfaced in the result for human/JSON output and for the backdating
  *     check the orchestrator (`../verify.js`) runs against the bound entry's
  *     `created_at`.
@@ -224,9 +226,22 @@ function describeFailure(usingDefaultBundledRoot, detail) {
 }
 
 /**
- * Parse the token's `genTime` via `openssl ts -reply -in <tsr> -text`, which
- * prints a "Time stamp: <RFC 2822-ish date>" line for a valid TSR. Returns an
- * ISO 8601 string, or null if the line is missing or unparseable.
+ * Read the token's `genTime` from the SIGNED part of the response only.
+ *
+ * A TimeStampResp is `{ status, timeStampToken }` and only the token is
+ * signed. `openssl ts -reply -text` on the whole response prints the
+ * unsigned `status` block first, including its free-text status string
+ * verbatim — so a response re-wrapped around a genuine token, with a status
+ * string of "\nTime stamp: <any date>", prints a forged "Time stamp:" line
+ * ahead of the real one while `openssl ts -verify` still reports OK. Reading
+ * the date from that output would let anyone holding a valid token choose
+ * the time it appears to attest, which defeats both the backdating check and
+ * the proof that a signature predates a key's revocation.
+ *
+ * So: extract the token (`-token_out`), then print the token alone
+ * (`-token_in`). Nothing in that output comes from outside the signature
+ * before the "Time stamp:" line. Returns an ISO 8601 string, or null if the
+ * line is missing or unparseable.
  *
  * @param {typeof execFileP} exec
  * @param {string} openssl
@@ -234,17 +249,16 @@ function describeFailure(usingDefaultBundledRoot, detail) {
  * @returns {Promise<string | null>}
  */
 async function parseGenTime(exec, openssl, tsrPath) {
+  const tokenPath = `${tsrPath}.token`;
   let stdout;
   try {
-    ({ stdout } = await exec(openssl, ["ts", "-reply", "-in", tsrPath, "-text"]));
+    await exec(openssl, ["ts", "-reply", "-in", tsrPath, "-token_out", "-out", tokenPath]);
+    ({ stdout } = await exec(openssl, ["ts", "-reply", "-token_in", "-in", tokenPath, "-text"]));
   } catch {
     return null;
   }
-  // Anchored to line start: several fields earlier in -text output (e.g. the
-  // TSA certificate's Subject DirName) are attacker-controlled in a forged-TSA
-  // scenario, so an unanchored match could in principle be spoofed by a field
-  // value that happens to contain the literal text "Time stamp:".
-  const match = /^Time stamp:\s*(.+)$/m.exec(stdout);
+  const info = stdout.slice(Math.max(0, stdout.indexOf("TST info:")));
+  const match = /^Time stamp:\s*(.+)$/m.exec(info);
   if (!match) return null;
   const parsed = new Date(match[1].trim());
   if (Number.isNaN(parsed.getTime())) return null;

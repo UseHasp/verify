@@ -1,6 +1,6 @@
 {
   "name": "@usehasp/verify",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Verify HASP signed audit exports. Offline, no telemetry, standard primitives only.",
   "license": "MIT",
   "author": "Hasp, Inc.",

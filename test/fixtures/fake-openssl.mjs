@@ -9,6 +9,8 @@
  * via the FAKE_GEN_TIME env var — checkTsa spawns it via `opensslPath`, which
  * inherits the current process env like any child_process call.
  */
+import { writeFileSync } from "node:fs";
+
 const args = process.argv.slice(2);
 
 if (args[0] === "version") {
@@ -17,6 +19,12 @@ if (args[0] === "version") {
 }
 if (args.includes("-verify")) {
   process.stderr.write("Verification: OK\n");
+  process.exit(0);
+}
+if (args.includes("-reply") && args.includes("-token_out")) {
+  // The verifier extracts the signed token before reading its time; there is
+  // no real token here, so an empty file stands in for it.
+  writeFileSync(args[args.indexOf("-out") + 1], "");
   process.exit(0);
 }
 if (args.includes("-reply") && args.includes("-text")) {

@@ -86,6 +86,16 @@ export function checkSchema(data) {
   for (const k of ["chain_head_hash", "tsa_anchor_chain"]) {
     if (!(k in v)) return fail(`missing .verification.${k}`);
   }
+  // An export of a window in which nothing happened is emitted with no
+  // entries, no key and a null head. There is nothing in it to check, and a
+  // verifier must not answer "verified" to that — so say what it is instead
+  // of failing on whichever field happens to be null first.
+  if (Array.isArray(data.entries) && data.entries.length === 0 && e.entry_count === 0) {
+    return fail(
+      "export contains no entries (.export.entry_count is 0) — there is nothing to verify; " +
+        "an empty export is not evidence of anything, including that no events occurred",
+    );
+  }
   if (typeof v.chain_head_hash !== "string" || !HEX64.test(v.chain_head_hash)) {
     return fail(".verification.chain_head_hash must be 64 hex chars (SHA-256)");
   }
@@ -502,6 +512,13 @@ function validateSharedEntryExtensions(entry, i, hasMultipleKeys) {
   if ("user_agent" in entry && entry.user_agent !== undefined && entry.user_agent !== null) {
     if (typeof entry.user_agent !== "string") {
       return `entry[${i}].user_agent must be a string when present`;
+    }
+  }
+  // `digest_version` (extension slot 17) is carried only by entries sealed
+  // under composition version 3 or later; it is itself part of the digest.
+  if ("digest_version" in entry && entry.digest_version !== undefined) {
+    if (!Number.isInteger(entry.digest_version) || entry.digest_version < 3) {
+      return `entry[${i}].digest_version must be an integer >= 3 when present`;
     }
   }
   // Multi-key envelopes: every entry carries its own `key_id`

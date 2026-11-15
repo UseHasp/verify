@@ -20,6 +20,9 @@ const clone = (x) => JSON.parse(JSON.stringify(x));
 // shape a legacy row-hash anchor has.
 const VALID_V1 = (() => {
   const d = JSON.parse(JSON.stringify(load("valid.json")));
+  // The sample carries one anchor per TSA over the same fold; one is enough
+  // to stand in for a legacy row-hash anchor.
+  d.verification.tsa_anchor_chain = [d.verification.tsa_anchor_chain[0]];
   const anchor = d.verification.tsa_anchor_chain[0];
   delete anchor.algo;
   delete anchor.anchored_entry_id;

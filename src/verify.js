@@ -4,8 +4,11 @@
  *
  * Programmatic use:
  *
- *   import { verifyExport } from "@usehasp/verify";
- *   const result = await verifyExport(parsedJson, { skipTsa: false });
+ *   import { parseExport, verifyExport } from "@usehasp/verify";
+ *   const result = await verifyExport(parseExport(jsonText), { skipTsa: false });
+ *
+ * Parse with `parseExport`, not `JSON.parse`: `JSON.parse` rounds integers
+ * above 2^53, and an entry whose metadata holds one then cannot be re-hashed.
  *
  * `result.ok` is the overall pass/fail. `result.checks` is the per-check
  * detail. The CLI's JSON output is a superset of this object.
@@ -14,12 +17,14 @@
 import { readFileSync } from "node:fs";
 import { checkAnchoring } from "./checks/anchoring.js";
 import { checkChain } from "./checks/chain.js";
-import { checkKeyRevocation } from "./checks/key-revocation.js";
+import { checkKeyRevocation, earliestCoveringAnchor } from "./checks/key-revocation.js";
 import { checkPublishedKey } from "./checks/published-key.js";
 import { checkSchema } from "./checks/schema.js";
 import { checkSegmentAnchoring } from "./checks/segment-anchoring.js";
 import { checkSignatures } from "./checks/signature.js";
 import { checkTsa } from "./checks/tsa.js";
+
+export { parseExport } from "./canonical.js";
 
 const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 
@@ -37,12 +42,21 @@ export const SCHEMA_VERSION = "1.0";
  * @property {string} [keysFile] local published-keys document to establish the trust root (offline)
  * @property {string} [keysBaseUrl] base URL for the `/trust/keys` endpoint (default app.usehasp.com)
  * @property {boolean} [allowUnanchored] accept an export with zero TSA anchors (pass-with-warning) instead of failing the anchoring check
+ * @property {number} [maxAnchorLagHours] fail when any attested entry was first time-attested more than this many hours after its created_at. Unset: a lag over 48 hours is reported in `late_anchoring` but does not fail.
  */
 
 // A TSA token's genTime is allowed to precede its bound entry's created_at by
 // up to this much before the export is treated as backdated. Covers ordinary
 // clock skew between the platform host and the TSA, not a deliberate forgery.
 const BACKDATING_SKEW_MS = 5 * 60 * 1000;
+
+// The platform anchors every chain daily and alarms when an entry stays
+// un-anchored past 48 hours. An entry first time-attested later than that was
+// either written during an anchoring gap or — the case worth a reader's
+// attention — written after the fact and anchored when it was written. The
+// token cannot tell the two apart; it only proves the entry existed by its
+// genTime. So a longer lag is reported, never silently accepted.
+const LATE_ANCHOR_NOTICE_HOURS = 48;
 
 /**
  * @typedef {{ran: false}
@@ -57,6 +71,7 @@ const BACKDATING_SKEW_MS = 5 * 60 * 1000;
  * @property {boolean} ok overall pass/fail
  * @property {{schema: CheckResult, chain: CheckResult, publishedKey: CheckResult, signatures: CheckResult, anchoring: AnchoringCheckResult, tsa: CheckResult, keyRevocation: CheckResult}} checks
  * @property {string | null} lineage_reset_at ISO timestamp when this org's chain lineage was force-reset (a prefix was truncated outside retention maintenance); null when the lineage is intact. When set, everything that verifies does so only for the post-reset history — pre-reset entries are absent and unverifiable.
+ * @property {{threshold_hours: number, entries: number, first_seq: number, max_lag_hours: number} | null} late_anchoring set when entries were first time-attested more than the threshold after their created_at: how many, the first such seq, and the longest lag. A token proves an entry existed BY its genTime, not AT its created_at — a long lag means the claimed dates rest on the signer alone for that stretch. Null when every attested entry was anchored promptly, or when the TSA check was skipped.
  * @property {string | null} fold_base the retained chain's fold base (`verification.fold_base` / `.segment_fold_base`) when a retention purge removed a prefix ahead of this export's window; null when the export is fold-complete from genesis. Never fails verification — a lawful purge is expected — but is surfaced loudly: the purged prefix's own history is not attested by this export.
  */
 
@@ -79,6 +94,7 @@ export async function verifyExport(data, opts = {}) {
       keyRevocation: { ran: false },
     },
     lineage_reset_at: null,
+    late_anchoring: null,
     fold_base: null,
   };
 
@@ -210,6 +226,37 @@ export async function verifyExport(data, opts = {}) {
     }
   }
 
+  const maxLagHours = opts.maxAnchorLagHours;
+  if (maxLagHours !== undefined && opts.skipTsa) {
+    // A limit on anchor lag is a limit on token times; with the TSA check
+    // skipped there are none, so the limit cannot be shown to hold.
+    out.checks.tsa = {
+      ran: true,
+      ok: false,
+      error:
+        "a maximum anchor lag was requested but the TSA check is skipped — the limit cannot be enforced without token times",
+    };
+    return out;
+  }
+  const late = findLateAnchoring(
+    validated.entries,
+    bindings,
+    tsaAnchors,
+    maxLagHours ?? LATE_ANCHOR_NOTICE_HOURS,
+  );
+  out.late_anchoring = late;
+  if (late && maxLagHours !== undefined) {
+    out.checks.tsa = {
+      ran: true,
+      ok: false,
+      error:
+        `${late.entries} entr${late.entries === 1 ? "y was" : "ies were"} first time-attested more than ` +
+        `${maxLagHours}h after created_at (first: seq=${late.first_seq}, longest lag ` +
+        `${late.max_lag_hours}h) — exceeds the allowed anchor lag`,
+    };
+    return out;
+  }
+
   // a signature under a revoked key fails verification
   // unless a covering anchor's genTime precedes the revocation — reuses the
   // same anchor-binding (`bindings`) and TSA genTime (`tsaAnchors`) data the
@@ -220,6 +267,38 @@ export async function verifyExport(data, opts = {}) {
 
   out.ok = true;
   return out;
+}
+
+/**
+ * Entries whose earliest covering anchor was issued more than
+ * `thresholdHours` after the entry's own created_at.
+ *
+ * @param {any[]} entries
+ * @param {Array<{index: number, algo: string, bound_seq: number}>} bindings
+ * @param {Array<{genTime: string}>} anchors
+ * @param {number} thresholdHours
+ * @returns {{threshold_hours: number, entries: number, first_seq: number, max_lag_hours: number} | null}
+ */
+function findLateAnchoring(entries, bindings, anchors, thresholdHours) {
+  let count = 0;
+  let firstSeq = 0;
+  let maxLagMs = 0;
+  for (const entry of entries) {
+    const anchor = earliestCoveringAnchor(entry.seq, bindings, anchors);
+    if (!anchor) continue;
+    const lagMs = Date.parse(anchor.genTime) - Date.parse(entry.created_at);
+    if (Number.isNaN(lagMs) || lagMs <= thresholdHours * 3_600_000) continue;
+    if (count === 0) firstSeq = entry.seq;
+    count++;
+    if (lagMs > maxLagMs) maxLagMs = lagMs;
+  }
+  if (count === 0) return null;
+  return {
+    threshold_hours: thresholdHours,
+    entries: count,
+    first_seq: firstSeq,
+    max_lag_hours: Math.round(maxLagMs / 360_000) / 10,
+  };
 }
 
 /**

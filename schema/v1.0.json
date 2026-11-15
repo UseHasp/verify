@@ -175,6 +175,11 @@
             "type": "string",
             "description": "Optional. Present only on a row sealed under digest_version >= 2 with a non-null value. Participates in the entry digest when present."
           },
+          "digest_version": {
+            "type": "integer",
+            "minimum": 3,
+            "description": "Optional. Present only on a row sealed under digest composition version 3 or later. Participates in the entry digest (so the version cannot be changed after sealing), and selects UTF-8 byte order for the keys of metadata and caller_attribution in that entry's canonical form."
+          },
           "key_id": {
             "type": "string",
             "description": "Optional. Present on every entry only when the export is multi-key (verification.keys[] present) — names which published key signed this entry."

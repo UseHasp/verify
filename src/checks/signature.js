@@ -50,7 +50,10 @@ export function checkSignatures(data, opts = {}) {
     let entryKey = pubKey;
     if (multiKey) {
       const keyId = entry.key_id;
-      if (typeof keyId !== "string" || !(keyId in /** @type {object} */ (opts.publicKeys))) {
+      if (
+        typeof keyId !== "string" ||
+        !Object.hasOwn(/** @type {object} */ (opts.publicKeys), keyId)
+      ) {
         return {
           ok: false,
           error: `entry seq=${entry.seq} references key_id ${JSON.stringify(keyId)}, which is not among this export's trusted keys — failing closed`,

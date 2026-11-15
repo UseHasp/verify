@@ -468,3 +468,42 @@ describe("checkSchema — .entries", () => {
     expectFail(d, /asserted_actor_hmac must be 64 hex chars when present/);
   });
 });
+
+describe("an export with no entries", () => {
+  // The platform emits this shape for a window in which nothing was
+  // recorded: no entries, no signing key, a null head. The old failure was a
+  // complaint about chain_head_hash's format, which reads like corruption.
+  const empty = () => ({
+    schema_version: "1.0",
+    export: {
+      tenant: "Example",
+      tenant_id: "01emptytenant",
+      range: { from: "2026-01-01 00:00:00", to: "2026-01-02 00:00:00" },
+      exported_at: "2026-01-03T00:00:00+00:00",
+      exported_by: null,
+      entry_count: 0,
+    },
+    verification: {
+      algo: "ed25519",
+      public_key_pem: null,
+      key_id: null,
+      key_published_at: null,
+      chain_head_hash: null,
+      tsa_anchor_chain: [],
+    },
+    entries: [],
+  });
+
+  it("is refused with a message that says it is empty, not malformed", () => {
+    const r = checkSchema(empty());
+    expect(r.ok).toBe(false);
+    expect(r.error).toMatch(/contains no entries/);
+    expect(r.error).toMatch(/nothing to verify/);
+  });
+
+  it("is never reported as verified", async () => {
+    const { verifyExport } = await import("../src/verify.js");
+    const r = await verifyExport(empty(), { skipTsa: true, allowUnanchored: true });
+    expect(r.ok).toBe(false);
+  });
+});

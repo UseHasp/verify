@@ -85,7 +85,12 @@ describe("signing-key revocation — full pipeline (valid-v2.json fixture, key r
     });
 
     expect(r.ok).toBe(true);
-    expect(r.checks.keyRevocation).toEqual({ ran: true, ok: true, notices: [] });
+    expect(r.checks.keyRevocation).toEqual({
+      ran: true,
+      ok: true,
+      notices: [],
+      unchecked_keys: [],
+    });
   });
 });
 
@@ -106,7 +111,7 @@ describe("checkKeyRevocation (unit)", () => {
         tsaAnchors,
       },
     );
-    expect(r).toEqual({ ok: true, notices: [] });
+    expect(r).toEqual({ ok: true, notices: [], unchecked_keys: [] });
   });
 
   it("fails an entry whose key has no covering anchor at all", () => {
@@ -152,5 +157,120 @@ describe("checkKeyRevocation (unit)", () => {
       },
     );
     expect(r.ok).toBe(false);
+  });
+});
+
+/**
+ * The status that governs an entry must be the status of the key its
+ * signature was verified under. Revocation exists for one case — the signing
+ * key leaked — and in that case the attacker writes the export. If the check
+ * trusts a label inside that export to decide which key's status to look up,
+ * the holder of a revoked key simply labels their forgeries with some other
+ * key_id and revocation never applies.
+ */
+describe("revocation cannot be dodged by relabelling entries", () => {
+  it("FAILS a single-key export signed under a revoked key even when every entry names a different key_id", async () => {
+    process.env.FAKE_GEN_TIME = "Jul 30 00:00:00 2026 GMT"; // after REVOKED_AT
+    const forged = headOnlyFixture();
+    for (const entry of forged.entries) {
+      entry.key_id = "01v2fixture00000000000key99"; // not the revoked key
+    }
+
+    const r = await verifyExport(forged, { keysFile: KEYS_REVOKED, opensslPath: FAKE_OPENSSL });
+
+    // The signatures are genuine (made with the revoked key), so every
+    // earlier check passes; revocation is the only thing standing.
+    expect(r.checks.signatures.ok).toBe(true);
+    expect(r.checks.keyRevocation.ok).toBe(false);
+    expect(r.checks.keyRevocation.error).toMatch(/revoked at/);
+    expect(r.ok).toBe(false);
+  });
+
+  it("uses verification.key_id, not the entry's own key_id, in a single-key export (unit)", () => {
+    const r = checkKeyRevocation(
+      { entries: [{ seq: 1, key_id: "decoy" }], verification: { key_id: "key-a" } },
+      {
+        keyStatuses: { "key-a": { status: "revoked", revoked_at: "2026-07-25T00:00:00Z" } },
+        bindings: [],
+        tsaAnchors: [],
+      },
+    );
+    expect(r.ok).toBe(false);
+  });
+
+  it("fails closed when an entry's key has no published status at all", () => {
+    const r = checkKeyRevocation(
+      { entries: [{ seq: 1, key_id: "key-z" }], verification: { keys: [{}, {}] } },
+      { keyStatuses: { "key-a": { status: "active" } }, bindings: [], tsaAnchors: [] },
+    );
+    expect(r.ok).toBe(false);
+    expect(r.error).toMatch(/status is unknown/);
+  });
+
+  it("does not treat an inherited object property as a published key", () => {
+    const r = checkKeyRevocation(
+      { entries: [{ seq: 1, key_id: "constructor" }], verification: { keys: [{}, {}] } },
+      { keyStatuses: {}, bindings: [], tsaAnchors: [] },
+    );
+    expect(r.ok).toBe(false);
+  });
+});
+
+describe("a key published as revoked without a usable revoked_at", () => {
+  // Revoked means "do not trust this key". Without a time there is no
+  // moment before which its signatures were good, so none of them pass —
+  // treating the missing time as "not revoked" would turn a malformed
+  // revocation into no revocation.
+  it.each([
+    ["missing", undefined],
+    ["null", null],
+    ["unparseable", "not-a-date"],
+  ])("FAILS when revoked_at is %s", (_label, revokedAt) => {
+    const r = checkKeyRevocation(
+      { entries: [{ seq: 1 }], verification: { key_id: "key-a" } },
+      {
+        keyStatuses: { "key-a": { status: "revoked", revoked_at: revokedAt } },
+        bindings: [{ index: 0, algo: "sha256-fold-v2", bound_seq: 1 }],
+        tsaAnchors: [{ genTime: "2026-07-20T00:00:00.000Z" }],
+      },
+    );
+    expect(r.ok).toBe(false);
+    expect(r.error).toMatch(/without a valid revoked_at/);
+  });
+});
+
+describe("a trust root that carries no revocation status", () => {
+  // A bare PEM, or a keys document saved before statuses were published,
+  // says which key to trust and nothing about whether it was later revoked.
+  // The signatures are still genuine, so this is not a failure — but a
+  // verifier that stays silent lets "verified" be read as "and not revoked".
+  it("names the key whose revocation could not be checked", () => {
+    const r = checkKeyRevocation(
+      { entries: [{ seq: 1 }, { seq: 2 }], verification: { key_id: "key-a" } },
+      {
+        keyStatuses: { "key-a": { status: undefined, revoked_at: null } },
+        bindings: [],
+        tsaAnchors: [],
+      },
+    );
+    expect(r).toEqual({ ok: true, notices: [], unchecked_keys: ["key-a"] });
+  });
+
+  it("is reported through the full pipeline when the trust root is a bare PEM", async () => {
+    const data = headOnlyFixture();
+    const r = await verifyExport(data, {
+      expectedKey: data.verification.public_key_pem,
+      opensslPath: FAKE_OPENSSL,
+    });
+    expect(r.ok).toBe(true);
+    expect(r.checks.keyRevocation.unchecked_keys).toEqual([data.verification.key_id]);
+  });
+
+  it("is empty when the keys document publishes a status", async () => {
+    const r = await verifyExport(headOnlyFixture(), {
+      keysFile: KEYS_ACTIVE,
+      opensslPath: FAKE_OPENSSL,
+    });
+    expect(r.checks.keyRevocation.unchecked_keys).toEqual([]);
   });
 });

@@ -225,3 +225,60 @@ describe("caller_attribution / user_agent extension slots (15/16)", () => {
     expect(checkChain(env).ok).toBe(false);
   });
 });
+
+describe("sealed digest_version (slot 17) with byte-ordered keys", () => {
+  const SEALED = ["sealed_version", "sealed_version_all_slots", "sealed_version_byte_ordered_keys"];
+
+  for (const name of SEALED) {
+    const opts = () => ({ hash: VECTOR[name].expected_hash, signature: VECTOR[name].signature });
+
+    it(`recomputes the frozen ${name} integrity hash byte-for-byte`, () => {
+      expect(checkChain(envelopeFrom(VECTOR[name].input, opts())).ok).toBe(true);
+    });
+
+    it(`verifies the frozen Ed25519 signature over the ${name} hash hex string`, () => {
+      const r = checkSignatures(envelopeFrom(VECTOR[name].input, opts()), {
+        publicKey: trustedKey(),
+      });
+      expect(r.ok).toBe(true);
+    });
+  }
+
+  // The version decides which slots are hashed. If it could be removed or
+  // changed without breaking the digest, an entry could be presented under a
+  // composition that ignores fields it was sealed with.
+  it("fails closed when digest_version is stripped from an entry sealed with it", () => {
+    const { digest_version: _dropped, ...stripped } = VECTOR.sealed_version_all_slots.input;
+    const r = checkChain(
+      envelopeFrom(stripped, { hash: VECTOR.sealed_version_all_slots.expected_hash }),
+    );
+    expect(r.ok).toBe(false);
+  });
+
+  it("fails closed when digest_version is changed", () => {
+    const r = checkChain(
+      envelopeFrom(
+        { ...VECTOR.sealed_version.input, digest_version: 4 },
+        { hash: VECTOR.sealed_version.expected_hash },
+      ),
+    );
+    expect(r.ok).toBe(false);
+  });
+
+  it("fails closed when digest_version is added to an entry sealed without it", () => {
+    const r = checkChain(envelopeFrom({ ...VECTOR.input, digest_version: 3 }));
+    expect(r.ok).toBe(false);
+  });
+
+  it("orders mixed keys by bytes, whatever order the export lists them in", () => {
+    const input = VECTOR.sealed_version_byte_ordered_keys.input;
+    const reversed = Object.fromEntries(Object.entries(input.metadata).reverse());
+    const r = checkChain(
+      envelopeFrom(
+        { ...input, metadata: reversed },
+        { hash: VECTOR.sealed_version_byte_ordered_keys.expected_hash },
+      ),
+    );
+    expect(r.ok).toBe(true);
+  });
+});

@@ -72,7 +72,7 @@ describe("checkChain", () => {
  * grafting the field must break the chain check.
  */
 import { createHash } from "node:crypto";
-import { canonicalizeForHash } from "../src/canonical.js";
+import { encodeCanonical } from "../src/canonical.js";
 
 // Mirrors checkChain's full cascade (base 12 + asserted_actor_hmac[13] +
 // customer_id[14] + caller_attribution[15] + user_agent[16]) — not
@@ -88,32 +88,30 @@ const recomputeHash = (entry) => {
     entry.action,
     entry.entity_type,
     entry.entity_id,
-    canonicalizeForHash(entry.metadata),
+    entry.metadata,
     entry.ip_address,
     entry.created_at,
     entry.phi_disposition ?? null,
     entry.subject_type ?? null,
     entry.subject_id_hmac ?? null,
   ];
-  const asserted = entry.asserted_actor_hmac ?? null;
-  const customer = entry.customer_id ?? null;
-  const callerAttribution = entry.caller_attribution ?? null;
-  const userAgent = entry.user_agent ?? null;
-  const callerAttributionPresent = callerAttribution !== null;
-  const userAgentPresent = userAgent !== null;
-  if (asserted !== null || customer !== null || callerAttributionPresent || userAgentPresent) {
-    fields.push(asserted);
+  // The optional slots in cascade order; the sample's entries carry
+  // digest_version, which is hashed last and selects byte-ordered keys.
+  const slots = [
+    entry.asserted_actor_hmac ?? null,
+    entry.customer_id ?? null,
+    entry.caller_attribution ?? null,
+    entry.user_agent ?? null,
+    entry.digest_version ?? null,
+  ];
+  let last = -1;
+  for (const [index, value] of slots.entries()) {
+    if (value !== null) last = index;
   }
-  if (customer !== null || callerAttributionPresent || userAgentPresent) {
-    fields.push(customer);
-  }
-  if (callerAttributionPresent || userAgentPresent) {
-    fields.push(canonicalizeForHash(callerAttribution));
-  }
-  if (userAgentPresent) {
-    fields.push(userAgent);
-  }
-  return createHash("sha256").update(JSON.stringify(fields)).digest("hex");
+  fields.push(...slots.slice(0, last + 1));
+  return createHash("sha256")
+    .update(encodeCanonical(fields, slots[4] !== null))
+    .digest("hex");
 };
 
 const withAssertedLastEntry = () => {
