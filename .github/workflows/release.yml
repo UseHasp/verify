@@ -37,17 +37,19 @@ jobs:
   release:
     name: release
     runs-on: ubuntu-latest
-    # Re-enable when a second maintainer joins, to require manual approval:
-    # environment: npm-production
+    # The publish runs in the `npm-production` environment: its protection
+    # rules (required reviewer, deployment branch `main`) are the approval
+    # gate between a mirrored tree and a public npm release.
+    environment: npm-production
     steps:
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: true
 
       - name: Setup Node
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
@@ -106,19 +108,19 @@ jobs:
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
         run: npm publish --dry-run
 
-      # Publish-only: no `version:` script, so changesets/action never opens a
+      # Publish-only: no `version-script:`, so changesets/action never opens a
       # Version PR — it publishes when package.json is ahead of npm (the guard
-      # above guarantees no changesets remain). createGithubReleases still tags +
+      # above guarantees no changesets remain). create-github-releases still tags +
       # cuts the GitHub Release.
       - name: Publish to npm
         id: changesets
         if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.dry_run) }}
-        uses: changesets/action@63a615b9cd06ba9a3e6d13796c7fbcb080a60a0b # v1.8.0
+        uses: changesets/action@ae32849d5ba541f9ae29e40e22a623bc13562f51 # v2.1.2
         with:
-          publish: npm run release
-          createGithubReleases: true
+          publish-script: npm run release
+          create-github-releases: true
+          github-token: ${{ secrets.GITHUB_TOKEN }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Auth is via npm Trusted Publisher (OIDC) — no long-lived token.
           # Configured at https://www.npmjs.com/package/@usehasp/verify/access
           # for repo UseHasp/verify, workflow release.yml. `id-token: write`
@@ -135,6 +137,6 @@ jobs:
 
       - name: Attest published tarball
         if: steps.changesets.outputs.published == 'true'
-        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: "*.tgz"

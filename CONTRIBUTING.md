@@ -99,7 +99,7 @@ Two safe ways to exercise the pipeline before it can touch `@latest`:
 - **Provenance** — every tarball is published with `--provenance`, producing a Sigstore attestation linking it to the exact commit + workflow run. Verify with `npm audit signatures` or `gh attestation verify`.
 - **Build provenance attestation** — additionally attested via `actions/attest-build-provenance`.
 - **`npm audit signatures`** runs in CI before every publish to verify all dependency tarballs are signed by the npm registry.
-- **Manual approval gate** — currently disabled (solo maintainer). Re-enable by uncommenting `environment: npm-production` in `.github/workflows/release.yml` and configuring the environment in repo Settings → Environments once a second maintainer joins.
+- **Manual approval gate** — `release.yml` publishes from the `npm-production` environment, which requires a reviewer's approval and is limited to `main` (configured in repo Settings → Environments).
 - **Dependabot** keeps GitHub Actions and npm dependencies patched monthly (grouped by ecosystem+directory), configured at the monorepo root — see `.github/dependabot.yml`.
 - **Branch protection** on `main` and `staging` should require: green tests, signed commits, linear history, 1 review, no force-push (configured in repo Settings).
 
